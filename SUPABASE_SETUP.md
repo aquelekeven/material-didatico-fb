@@ -120,3 +120,29 @@ where name_key = 'keven';
 Use o nome normalizado em minúsculas e sem acento no `name_key`.
 
 As sessões daquele usuário são removidas automaticamente por `ON DELETE CASCADE`. O histórico antigo continua preservado porque o log usa `ON DELETE SET NULL` no ID e mantém o nome gravado.
+
+
+## Painel administrativo de histórico
+
+O projeto inclui uma página separada e sem link visível no painel principal:
+
+`/admin-log.html`
+
+Ela mostra o histórico de forma legível, com filtros por usuário, tipo de ação, período e busca livre. Os dados técnicos (IP observado, device ID e navegador) ficam recolhidos em detalhes expansíveis.
+
+### Configurar o PIN administrativo
+
+No Supabase, vá em **Edge Functions > Secrets** e crie:
+
+- Nome: `ADMIN_LOG_PIN`
+- Valor: um PIN de **6 números** escolhido por você
+
+Esse PIN fica somente no Supabase. Não coloque no GitHub e não precisa compartilhá-lo comigo.
+
+Depois:
+
+1. Rode novamente `supabase/setup.sql` no SQL Editor.
+2. Faça novo deploy da Edge Function `smart-endpoint` usando a versão atualizada de `supabase/functions/material-api/index.ts`.
+3. Acesse `admin-log.html` no GitHub Pages.
+
+O painel admin mantém a sessão por 4 horas e bloqueia novas tentativas por 15 minutos após 5 PINs incorretos.
