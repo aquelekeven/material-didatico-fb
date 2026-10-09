@@ -1,8 +1,26 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+
+function getBackendSecretKey() {
+  const newKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (newKeys) {
+    try {
+      const parsed = JSON.parse(newKeys);
+      if (parsed?.default) return parsed.default as string;
+    } catch {
+      // Fallback para a variável legada abaixo.
+    }
+  }
+
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacy) return legacy;
+
+  throw new Error("Nenhuma secret key do Supabase disponível na Edge Function.");
+}
+
+const BACKEND_SECRET_KEY = getBackendSecretKey();
+const admin = createClient(SUPABASE_URL, BACKEND_SECRET_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
