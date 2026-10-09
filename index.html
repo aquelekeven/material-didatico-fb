@@ -38,6 +38,19 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .btn.small{padding:8px 10px;border-radius:11px;font-size:13px}
 .btn.danger{color:var(--red)}
+.sync-pill{
+  display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;
+  padding:9px 11px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap
+}
+.sync-pill::before{content:"";width:8px;height:8px;border-radius:50%;background:#a1a1a6}
+.sync-pill.online{color:var(--green);background:var(--green-soft);border-color:#d8eedf}
+.sync-pill.online::before{background:var(--green)}
+.sync-pill.syncing{color:#1767aa;background:var(--blue-soft);border-color:#d6e8ff}
+.sync-pill.syncing::before{background:var(--blue)}
+.sync-pill.warn{color:#8b6200;background:var(--yellow-soft);border-color:#f1e2a6}
+.sync-pill.warn::before{background:var(--yellow)}
+.sync-pill.error{color:var(--red);background:var(--red-soft);border-color:#ffd7db}
+.sync-pill.error::before{background:var(--red)}
 
 .card{background:rgba(255,255,255,.96);border:1px solid rgba(0,0,0,.055);border-radius:var(--radius);box-shadow:var(--shadow)}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:16px}
@@ -217,6 +230,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       <p class="subtitle">Painel de produção por disponibilidade do conteúdo, páginas diagramadas, capacidade do time e cronograma de impressão.</p>
     </div>
     <div class="top-actions">
+      <div class="sync-pill syncing" id="syncStatus" title="Status da sincronização com o Supabase">Conectando…</div>
       <button class="btn" id="autoAssignBtn">Distribuir pendentes</button>
       <button class="btn" id="exportBtn">Exportar backup</button>
       <button class="btn primary" id="addMaterialBtn">+ Material</button>
@@ -341,9 +355,22 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 
 <div id="toast" class="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
 <script>
 (() => {
   const STORAGE_KEY = "fb_material_didatico_prazos_v3";
+  const SUPABASE_URL = "https://zjlrkptqlxnbiubxkivg.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VbEDwOcj-i8RWgmdKjvPWg_w2dQryK4";
+  const DB_TABLE = "material_didatico_state";
+  const DB_ROW_ID = "main";
+
+  const db = window.supabase?.createClient
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+    : null;
+
+  let remoteReady = false;
+  let applyingRemote = false;
+  let remoteSaveTimer = null;
 
   const baseState = {
     physicalDeadline:"2026-10-30",
@@ -371,28 +398,134 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   let calendarMonth = initialDeadline.getMonth();
 
   function clone(o){return JSON.parse(JSON.stringify(o))}
+
+  function normalizeState(s){
+    const safe=s&&typeof s==="object"?s:{};
+    const merged={...clone(baseState),...safe};
+    merged.team=Array.isArray(safe.team)?safe.team:clone(baseState.team);
+    merged.materials=Array.isArray(safe.materials)?safe.materials.map((m,i)=>{
+      const b=baseState.materials[i]||{};
+      return {
+        id:m.id||b.id||("m"+Date.now()+i),
+        name:m.name||b.name||"Novo material",
+        owner:m.owner||"",
+        plannedStart:m.plannedStart||"",
+        currentPage:Number.isFinite(Number(m.currentPage))?Number(m.currentPage):Number(b.currentPage||0),
+        totalPages:Math.max(1,Number(m.totalPages||b.totalPages||96))
+      };
+    }):clone(baseState.materials);
+    return merged;
+  }
+
   function load(){
     try{
       const raw=localStorage.getItem(STORAGE_KEY);
-      if(!raw) return clone(baseState);
-      const s=JSON.parse(raw);
-      const merged={...clone(baseState),...s};
-      merged.team=Array.isArray(s.team)?s.team:clone(baseState.team);
-      merged.materials=Array.isArray(s.materials)?s.materials.map((m,i)=>{
-        const b=baseState.materials[i]||{};
-        return {
-          id:m.id||b.id||("m"+Date.now()+i),
-          name:m.name||b.name||"Novo material",
-          owner:m.owner||"",
-          plannedStart:m.plannedStart||"",
-          currentPage:Number.isFinite(Number(m.currentPage))?Number(m.currentPage):Number(b.currentPage||0),
-          totalPages:Math.max(1,Number(m.totalPages||b.totalPages||96))
-        };
-      }):clone(baseState.materials);
-      return merged;
+      return raw?normalizeState(JSON.parse(raw)):clone(baseState);
     }catch(e){return clone(baseState)}
   }
-  function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+
+  function setSyncStatus(label,tone="syncing"){
+    const el=document.querySelector("#syncStatus");
+    if(!el)return;
+    el.textContent=label;
+    el.className="sync-pill "+tone;
+  }
+
+  function save(){
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    if(remoteReady&&!applyingRemote)scheduleRemoteSave();
+  }
+
+  function scheduleRemoteSave(){
+    clearTimeout(remoteSaveTimer);
+    setSyncStatus("Salvando…","syncing");
+    remoteSaveTimer=setTimeout(pushStateToSupabase,450);
+  }
+
+  async function pushStateToSupabase(){
+    if(!db||!remoteReady||applyingRemote)return;
+    const snapshot=clone(state);
+    const {error}=await db
+      .from(DB_TABLE)
+      .upsert({
+        id:DB_ROW_ID,
+        state:snapshot,
+        updated_at:new Date().toISOString()
+      },{onConflict:"id"});
+
+    if(error){
+      console.error("Erro ao salvar no Supabase:",error);
+      setSyncStatus("Erro ao salvar","error");
+      return;
+    }
+    setSyncStatus("Sincronizado","online");
+  }
+
+  async function initSupabase(){
+    if(!db){
+      setSyncStatus("Supabase indisponível","error");
+      return;
+    }
+
+    setSyncStatus("Conectando…","syncing");
+
+    const {data,error}=await db
+      .from(DB_TABLE)
+      .select("state,updated_at")
+      .eq("id",DB_ROW_ID)
+      .maybeSingle();
+
+    if(error){
+      console.error("Supabase ainda não configurado:",error);
+      setSyncStatus("Configurar banco","warn");
+      return;
+    }
+
+    const hasRemoteState=
+      data?.state&&
+      typeof data.state==="object"&&
+      !Array.isArray(data.state)&&
+      Object.keys(data.state).length>0;
+
+    remoteReady=true;
+
+    if(hasRemoteState){
+      applyingRemote=true;
+      state=normalizeState(data.state);
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+      render();
+      applyingRemote=false;
+    }else{
+      await pushStateToSupabase();
+    }
+
+    db.channel("material-didatico-fb-state")
+      .on(
+        "postgres_changes",
+        {
+          event:"*",
+          schema:"public",
+          table:DB_TABLE,
+          filter:"id=eq."+DB_ROW_ID
+        },
+        payload=>{
+          const incoming=payload?.new?.state;
+          if(!incoming||typeof incoming!=="object")return;
+
+          applyingRemote=true;
+          state=normalizeState(incoming);
+          localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+          render();
+          applyingRemote=false;
+          setSyncStatus("Atualizado agora","online");
+        }
+      )
+      .subscribe(status=>{
+        if(status==="SUBSCRIBED")setSyncStatus("Online · tempo real","online");
+        else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT")setSyncStatus("Realtime indisponível","warn");
+        else if(status==="CLOSED")setSyncStatus("Desconectado","warn");
+      });
+  }
   function parseDate(str){
     if(!str)return null;
     const [y,m,d]=str.split("-").map(Number);
@@ -810,6 +943,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   });
 
   render();
+  initSupabase();
 })();
 </script>
 </body>
