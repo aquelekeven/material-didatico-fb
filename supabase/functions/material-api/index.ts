@@ -26,7 +26,7 @@ const admin = createClient(SUPABASE_URL, BACKEND_SECRET_KEY, {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-app-session, apikey",
+  "Access-Control-Allow-Headers": "content-type, x-app-session, x-admin-session, apikey",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -128,6 +128,46 @@ async function writeAudit(
   });
 
   if (error) console.error("audit insert failed", error);
+}
+
+function getAdminPin() {
+  return Deno.env.get("ADMIN_LOG_PIN")?.trim() || null;
+}
+
+async function getAdminSession(req: Request) {
+  const raw = req.headers.get("x-admin-session")?.trim();
+  if (!raw) return null;
+
+  const tokenHash = await sha256(raw);
+  const now = new Date().toISOString();
+
+  const { data, error } = await admin
+    .from("material_didatico_admin_sessions")
+    .select("id,device_id,expires_at,revoked_at")
+    .eq("token_hash", tokenHash)
+    .is("revoked_at", null)
+    .gt("expires_at", now)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data;
+}
+
+async function writeAdminAudit(
+  req: Request,
+  deviceId: string | null,
+  action: string,
+) {
+  const { error } = await admin.from("material_didatico_audit_log").insert({
+    user_id: null,
+    user_name: "Administrador",
+    device_id: deviceId,
+    ip_observed: observedIp(req),
+    user_agent: req.headers.get("user-agent"),
+    action,
+    details: {},
+  });
+  if (error) console.error("admin audit insert failed", error);
 }
 
 async function getSession(req: Request) {
@@ -262,6 +302,109 @@ Deno.serve(async (req) => {
 
   const action = String(body?.action || "");
   const deviceId = typeof body?.device_id === "string" ? body.device_id.slice(0, 200) : null;
+
+  if (action === "admin_login") {
+    const configuredPin = getAdminPin();
+    if (!configuredPin) {
+      return json({ error: "O PIN administrativo ainda não foi configurado no Supabase." }, 503);
+    }
+
+    const pin = String(body?.pin || "");
+    if (!/^\d{6}$/.test(pin)) {
+      return json({ error: "O PIN administrativo precisa ter 6 números." }, 400);
+    }
+
+    const attemptKey = await sha256((deviceId || "no-device") + "|" + (observedIp(req) || "no-ip"));
+    const { data: attempt } = await admin
+      .from("material_didatico_admin_attempts")
+      .select("failed_attempts,locked_until")
+      .eq("attempt_key", attemptKey)
+      .maybeSingle();
+
+    if (attempt?.locked_until && new Date(attempt.locked_until).getTime() > Date.now()) {
+      return json({ error: "Muitas tentativas incorretas. Aguarde 15 minutos." }, 423);
+    }
+
+    const valid = safeEqual(await sha256(pin), await sha256(configuredPin));
+    if (!valid) {
+      const attempts = Number(attempt?.failed_attempts || 0) + 1;
+      await admin.from("material_didatico_admin_attempts").upsert({
+        attempt_key: attemptKey,
+        failed_attempts: attempts >= 5 ? 0 : attempts,
+        locked_until: attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "attempt_key" });
+
+      return json({ error: "PIN administrativo incorreto." }, 401);
+    }
+
+    await admin.from("material_didatico_admin_attempts").upsert({
+      attempt_key: attemptKey,
+      failed_attempts: 0,
+      locked_until: null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "attempt_key" });
+
+    const sessionToken = randomToken(32);
+    const tokenHash = await sha256(sessionToken);
+    const sessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+
+    const { error: sessionError } = await admin
+      .from("material_didatico_admin_sessions")
+      .insert({
+        id: sessionId,
+        token_hash: tokenHash,
+        device_id: deviceId,
+        expires_at: expiresAt,
+      });
+
+    if (sessionError) {
+      console.error(sessionError);
+      return json({ error: "Não foi possível abrir a sessão administrativa." }, 500);
+    }
+
+    await writeAdminAudit(req, deviceId, "admin_login");
+    return json({ session_token: sessionToken, expires_at: expiresAt });
+  }
+
+  if (action === "admin_check_session") {
+    const adminSession = await getAdminSession(req);
+    if (!adminSession) return json({ error: "Sessão administrativa inválida ou expirada." }, 401);
+    return json({ ok: true, expires_at: adminSession.expires_at });
+  }
+
+  if (action === "admin_get_logs") {
+    const adminSession = await getAdminSession(req);
+    if (!adminSession) return json({ error: "Sessão administrativa inválida ou expirada." }, 401);
+
+    const limit = Math.max(1, Math.min(1500, Number(body?.limit || 750)));
+    const { data, error } = await admin
+      .from("material_didatico_audit_log")
+      .select("id,user_name,device_id,ip_observed,user_agent,action,details,created_at")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error(error);
+      return json({ error: "Não foi possível carregar o histórico." }, 500);
+    }
+
+    return json({ logs: data || [] });
+  }
+
+  if (action === "admin_logout") {
+    const adminSession = await getAdminSession(req);
+    if (!adminSession) return json({ ok: true });
+
+    await admin
+      .from("material_didatico_admin_sessions")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", adminSession.id);
+
+    await writeAdminAudit(req, deviceId || adminSession.device_id, "admin_logout");
+    return json({ ok: true });
+  }
 
   if (action === "login") {
     const displayName = String(body?.name || "").trim().replace(/\s+/g, " ").slice(0, 60);
