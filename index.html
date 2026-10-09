@@ -214,13 +214,14 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .flow-step{border:1px solid var(--line);background:#fafafa;border-radius:12px;padding:9px;min-width:0;transition:.15s ease}
 .flow-step.done{background:var(--green-soft);border-color:#d8eedf}
 .flow-step.pending{background:var(--yellow-soft);border-color:#f1e2a6}
-.flow-step.pending .check-ui{background:var(--yellow);border-color:var(--yellow);color:#fff}
+.flow-step.pending .check-ui{background:#d1d1d6;border-color:#b8b8bd;color:#fff}
 .flow-step.pending .flow-name{color:#7a5a00}
 .flow-step:has(input:disabled){opacity:.58;background:#f5f5f6}
 .flow-check{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:24px}
 .flow-check input{position:absolute;opacity:0;pointer-events:none}
 .check-ui{width:19px;height:19px;border-radius:6px;border:1.5px solid #c7c7cc;background:#fff;display:grid;place-items:center;color:transparent;font-size:12px;font-weight:900;flex:0 0 auto;transition:.14s ease}
 .flow-check input:checked + .check-ui{background:var(--green);border-color:var(--green);color:#fff}
+.flow-step.pending .flow-check input:checked + .check-ui{background:#d1d1d6;border-color:#b8b8bd;color:#fff}
 .flow-name{font-size:10px;font-weight:780;line-height:1.15;color:#4f4f54;text-transform:uppercase;letter-spacing:.02em}
 .flow-optional{font-size:9px;color:var(--muted);font-weight:650;text-transform:none;letter-spacing:0}
 .flow-date{margin-top:7px;width:100%;height:32px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text);padding:0 8px;font-size:11px;font-weight:650;outline:none}
@@ -509,6 +510,10 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   let remoteReady = false;
   let applyingRemote = false;
   let remoteSaveTimer = null;
+  let remoteDirty = false;
+  let remoteSaveInFlight = false;
+  let lastSyncedState = null;
+  const REMOTE_SYNC_MS = 15_000;
 
   function emptyFlow(){
     return {start:"",inProgress:"",review:"",amendments:"",fileClosing:"",sentToPrint:"",completed:""};
@@ -658,22 +663,104 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return payload;
   }
 
+  function mergePendingChanges(baseStateSnapshot,localState,incomingState){
+    const base=normalizeState(baseStateSnapshot||{});
+    const local=normalizeState(localState||{});
+    const incoming=normalizeState(incomingState||{});
+    const merged=clone(incoming);
+
+    for(const field of ["physicalDeadline","printDays","daysPerBook","readyOutside"]){
+      if(JSON.stringify(local[field])!==JSON.stringify(base[field]))merged[field]=clone(local[field]);
+    }
+
+    if(JSON.stringify(local.team)!==JSON.stringify(base.team))merged.team=clone(local.team);
+
+    const baseById=new Map(base.materials.map(m=>[m.id,m]));
+    const localById=new Map(local.materials.map(m=>[m.id,m]));
+    const incomingById=new Map(incoming.materials.map(m=>[m.id,m]));
+    const materialFields=["name","owner","plannedStart","currentPage","totalPages","flow"];
+
+    const locallyDeleted=new Set(
+      base.materials.filter(m=>!localById.has(m.id)).map(m=>m.id)
+    );
+
+    const localOrderChanged=
+      JSON.stringify(base.materials.map(m=>m.id))!==JSON.stringify(local.materials.map(m=>m.id));
+
+    const mergedById=new Map();
+
+    for(const incomingMaterial of incoming.materials){
+      if(locallyDeleted.has(incomingMaterial.id))continue;
+      mergedById.set(incomingMaterial.id,clone(incomingMaterial));
+    }
+
+    for(const localMaterial of local.materials){
+      const baseMaterial=baseById.get(localMaterial.id);
+
+      if(!baseMaterial){
+        mergedById.set(localMaterial.id,clone(localMaterial));
+        continue;
+      }
+
+      const target=mergedById.get(localMaterial.id)||clone(incomingById.get(localMaterial.id)||localMaterial);
+      for(const field of materialFields){
+        if(JSON.stringify(localMaterial[field])!==JSON.stringify(baseMaterial[field])){
+          target[field]=clone(localMaterial[field]);
+        }
+      }
+      mergedById.set(localMaterial.id,target);
+    }
+
+    if(localOrderChanged){
+      const ordered=[];
+      for(const localMaterial of local.materials){
+        const item=mergedById.get(localMaterial.id);
+        if(item){ordered.push(item);mergedById.delete(localMaterial.id)}
+      }
+      for(const incomingMaterial of incoming.materials){
+        const item=mergedById.get(incomingMaterial.id);
+        if(item){ordered.push(item);mergedById.delete(incomingMaterial.id)}
+      }
+      merged.materials=ordered;
+    }else{
+      merged.materials=incoming.materials
+        .filter(m=>mergedById.has(m.id))
+        .map(m=>mergedById.get(m.id));
+      for(const item of mergedById.values())merged.materials.push(item);
+    }
+
+    return normalizeState(merged);
+  }
+
   function save(){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
     if(remoteReady&&!applyingRemote&&currentUser)scheduleRemoteSave();
   }
 
   function scheduleRemoteSave(){
-    clearTimeout(remoteSaveTimer);
-    setSyncStatus("Salvando…","syncing");
-    remoteSaveTimer=setTimeout(pushStateToSupabase,450);
+    remoteDirty=true;
+    setSyncStatus("Alterações pendentes · até 15s","syncing");
+
+    if(remoteSaveTimer!==null)return;
+    remoteSaveTimer=setTimeout(()=>{
+      remoteSaveTimer=null;
+      pushStateToSupabase();
+    },REMOTE_SYNC_MS);
   }
 
   async function pushStateToSupabase(){
-    if(!remoteReady||applyingRemote||!currentUser)return;
+    if(!remoteReady||applyingRemote||!currentUser||!remoteDirty)return;
 
+    if(remoteSaveInFlight){
+      scheduleRemoteSave();
+      return;
+    }
+
+    remoteSaveInFlight=true;
+    remoteDirty=false;
     const snapshot=clone(state);
     const expectedRevision=currentRevision;
+    setSyncStatus("Salvando…","syncing");
 
     try{
       const result=await callMaterialApi({
@@ -683,17 +770,30 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       });
 
       currentRevision=Number(result.revision??currentRevision);
-      setSyncStatus("Sincronizado","online");
+      lastSyncedState=clone(snapshot);
+
+      if(remoteDirty){
+        setSyncStatus("Alterações pendentes · até 15s","syncing");
+        scheduleRemoteSave();
+      }else{
+        setSyncStatus("Sincronizado","online");
+      }
     }catch(error){
       if(error.status===409&&error.payload?.state){
-        applyingRemote=true;
-        state=normalizeState(error.payload.state);
+        const latestRemote=normalizeState(error.payload.state);
         currentRevision=Number(error.payload.revision||0);
+
+        // Concilia o estado remoto com aquilo que mudou localmente desde o último sync,
+        // sem apagar cliques rápidos que ainda estavam pendentes.
+        state=mergePendingChanges(lastSyncedState||latestRemote,state,latestRemote);
+        lastSyncedState=clone(latestRemote);
         localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+        remoteDirty=true;
+        applyingRemote=true;
         render();
         applyingRemote=false;
-        setSyncStatus("Atualizado por outra pessoa","warn");
-        toast("Outra pessoa atualizou o painel antes de você. Recarreguei a versão mais recente.");
+        setSyncStatus("Conciliando alterações · até 15s","warn");
+        scheduleRemoteSave();
         return;
       }
 
@@ -703,13 +803,18 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         currentUser=null;
         workflowBackendReady=false;
         remoteReady=false;
+        remoteDirty=false;
         setSyncStatus("Identificação necessária","warn");
         applyIdentityUi();
         return;
       }
 
       console.error("Erro ao salvar:",error);
-      setSyncStatus("Erro ao salvar","error");
+      remoteDirty=true;
+      setSyncStatus("Erro ao salvar · tentando novamente","error");
+      scheduleRemoteSave();
+    }finally{
+      remoteSaveInFlight=false;
     }
   }
 
@@ -748,10 +853,13 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     if(hasRemoteState){
       applyingRemote=true;
       state=normalizeState(data.state);
+      lastSyncedState=clone(state);
       localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
       render();
       applyingRemote=false;
     }else{
+      lastSyncedState=normalizeState({});
+      remoteDirty=true;
       await pushStateToSupabase();
     }
 
@@ -770,14 +878,31 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
           currentRevision=Number(payload.new?.revision||currentRevision);
 
-          // Não re-renderiza o próprio eco do Realtime; isso evita perder foco ao digitar páginas.
+          // Eco da própria gravação: a resposta do save já atualizou revision/baseline.
           if(payload.new?.updated_client_id===CLIENT_INSTANCE_ID){
-            setSyncStatus("Online · tempo real","online");
+            if(remoteDirty)setSyncStatus("Alterações pendentes · até 15s","syncing");
+            else setSyncStatus("Sincronizado","online");
+            return;
+          }
+
+          const normalizedIncoming=normalizeState(incoming);
+
+          if(remoteDirty||remoteSaveInFlight){
+            state=mergePendingChanges(lastSyncedState||normalizedIncoming,state,normalizedIncoming);
+            lastSyncedState=clone(normalizedIncoming);
+            localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+            applyingRemote=true;
+            render();
+            applyingRemote=false;
+            remoteDirty=true;
+            setSyncStatus("Alteração externa conciliada · até 15s","warn");
+            scheduleRemoteSave();
             return;
           }
 
           applyingRemote=true;
-          state=normalizeState(incoming);
+          state=normalizedIncoming;
+          lastSyncedState=clone(normalizedIncoming);
           localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
           render();
           applyingRemote=false;
@@ -785,7 +910,10 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         }
       )
       .subscribe(status=>{
-        if(status==="SUBSCRIBED")setSyncStatus("Online · tempo real","online");
+        if(status==="SUBSCRIBED"){
+          if(remoteDirty)setSyncStatus("Alterações pendentes · até 15s","syncing");
+          else setSyncStatus("Online · tempo real","online");
+        }
         else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT")setSyncStatus("Realtime indisponível","warn");
         else if(status==="CLOSED")setSyncStatus("Desconectado","warn");
       });
@@ -1334,6 +1462,16 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     });
   }
 
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="hidden"&&remoteDirty&&!remoteSaveInFlight){
+      if(remoteSaveTimer!==null){
+        clearTimeout(remoteSaveTimer);
+        remoteSaveTimer=null;
+      }
+      pushStateToSupabase();
+    }
+  });
+
   document.querySelector("#identityForm").addEventListener("submit",async e=>{
     e.preventDefault();
     const name=document.querySelector("#identityName").value.trim();
@@ -1364,6 +1502,10 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     if(!confirmed)return;
 
     try{
+      if(remoteDirty&&!remoteSaveInFlight){
+        if(remoteSaveTimer!==null){clearTimeout(remoteSaveTimer);remoteSaveTimer=null}
+        await pushStateToSupabase();
+      }
       await callMaterialApi({action:"logout"});
     }catch(error){
       console.warn("Não foi possível revogar a sessão no servidor:",error);
