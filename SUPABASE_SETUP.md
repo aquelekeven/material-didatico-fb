@@ -22,7 +22,7 @@ Esse SQL pode ser executado mesmo se a versão anterior do banco já tiver sido 
 
 A função está em:
 
-`supabase/functions/material-api/index.ts`
+`supabase/functions/smart-endpoint/index.ts`
 
 Ela precisa ser publicada com **JWT verification desativada**, porque este app não usa Supabase Auth; a própria função valida o PIN e a sessão do dispositivo.
 
@@ -33,7 +33,7 @@ Se usar Supabase CLI, o repositório já contém:
 com:
 
 ```toml
-[functions.material-api]
+[functions.smart-endpoint]
 verify_jwt = false
 ```
 
