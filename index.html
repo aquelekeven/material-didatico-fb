@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Material Didático FB - Prazos</title>
+<style>
+:root{
+  --bg:#f5f5f7; --card:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea;
+  --blue:#0071e3; --blue2:#63aaf5; --blue-soft:#eaf3ff;
+  --green:#248a3d; --green2:#62c875; --green-soft:#edf8f0;
+  --yellow:#b98200; --yellow2:#ffd45a; --yellow-soft:#fff8dc;
+  --red:#d70015; --red2:#ff6972; --red-soft:#fff0f1;
+  --purple:#7357d7; --purple-soft:#f0edff;
+  --shadow:0 12px 30px rgba(0,0,0,.055); --radius:22px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.app{max-width:1560px;margin:0 auto;padding:28px}
+.topbar{display:flex;justify-content:space-between;gap:22px;align-items:flex-start;margin-bottom:24px}
+.eyebrow{color:var(--blue);font-size:13px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0 10px;font-weight:780}
+.subtitle{margin:0;color:var(--muted);max-width:860px;line-height:1.5}
+.top-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.btn{
+  border:1px solid var(--line);background:#fff;color:var(--text);border-radius:14px;padding:11px 14px;
+  font-weight:650;box-shadow:0 2px 8px rgba(0,0,0,.03);transition:box-shadow .14s ease,background .14s ease,transform .14s ease;
+}
+.btn:hover{box-shadow:0 8px 18px rgba(0,0,0,.07);transform:translateY(-1px)}
+.btn:active{transform:scale(.985)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.small{padding:8px 10px;border-radius:11px;font-size:13px}
+.btn.danger{color:var(--red)}
+
+.card{background:rgba(255,255,255,.96);border:1px solid rgba(0,0,0,.055);border-radius:var(--radius);box-shadow:var(--shadow)}
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.metric{padding:18px;min-height:132px;display:flex;flex-direction:column;justify-content:space-between}
+.metric .label{color:var(--muted);font-size:13px;font-weight:650}
+.metric .value{font-size:29px;font-weight:780;letter-spacing:-.035em;margin:8px 0 4px}
+.metric .hint{font-size:12px;color:var(--muted);line-height:1.35}
+.value.good{color:var(--green)} .value.warn{color:var(--yellow)} .value.bad{color:var(--red)}
+
+.panel{padding:20px}
+.panel-title{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px}
+.panel-title h2{margin:0;font-size:20px;letter-spacing:-.02em}
+.panel-title p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.settings{display:grid;grid-template-columns:1.2fr .7fr .75fr .75fr;gap:11px;margin-bottom:14px}
+.field{background:#fafafa;border:1px solid var(--line);border-radius:15px;padding:11px 12px}
+.field label{display:block;font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.field input{width:100%;border:0;outline:0;background:transparent;font-weight:650;color:var(--text)}
+.deadline-callout{
+  display:flex;gap:11px;align-items:flex-start;padding:13px 15px;background:var(--blue-soft);
+  border:1px solid #d6e8ff;border-radius:15px;margin-bottom:15px
+}
+.deadline-callout strong{display:block;margin-bottom:3px}
+.deadline-callout span{font-size:13px;color:#40607d;line-height:1.4}
+
+/* Materials: no horizontal table */
+.materials-list{display:grid;gap:10px}
+.material-card{
+  border:1px solid var(--line);background:#fff;border-radius:17px;padding:14px 15px;
+  transition:border-color .14s ease,box-shadow .14s ease;
+}
+.material-card:hover{border-color:#d7d7dc;box-shadow:0 8px 20px rgba(0,0,0,.04)}
+.material-card.behind{border-left:4px solid var(--red)}
+.material-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.material-index{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:#f4f4f6;color:var(--muted);font-size:12px;font-weight:750;flex:0 0 auto}
+.material-name{
+  min-width:0;flex:1;border:0;outline:0;background:transparent;font-size:16px;font-weight:760;color:var(--text)
+}
+.material-actions{display:flex;gap:5px;margin-left:auto}
+.icon-btn{
+  border:1px solid var(--line);background:#fff;border-radius:9px;width:31px;height:31px;display:grid;place-items:center;color:var(--muted);
+  transition:background .14s ease,color .14s ease
+}
+.icon-btn:hover{background:#f6f6f8;color:var(--text)}
+.risk{font-size:11px;font-weight:760;white-space:nowrap;display:inline-flex;align-items:center;border-radius:999px;padding:6px 9px}
+.risk.good{color:var(--green);background:var(--green-soft)}
+.risk.warn{color:#8b6200;background:var(--yellow-soft)}
+.risk.bad{color:var(--red);background:var(--red-soft)}
+.risk.muted{color:var(--muted);background:#f4f4f6}
+
+.material-grid{
+  display:grid;grid-template-columns:160px 155px 150px minmax(180px,1fr) 105px;
+  gap:10px;align-items:end
+}
+.mini-field label{display:block;font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.045em;margin:0 0 5px 2px}
+.mini-field select,.mini-field input{
+  width:100%;border:1px solid var(--line);border-radius:11px;padding:8px 9px;background:#fff;color:var(--text);outline:none;
+  transition:border-color .14s ease,box-shadow .14s ease
+}
+.mini-field select:focus,.mini-field input:focus{border-color:#9bc9f8;box-shadow:0 0 0 3px rgba(0,113,227,.07)}
+.page-inputs{display:flex;align-items:center;gap:5px}
+.page-inputs input{text-align:center;font-weight:700}
+.page-sep{color:#a1a1a6;font-size:12px}
+
+.progress-block{min-width:0}
+.progress-track{height:11px;border-radius:99px;background:#ececf0;overflow:hidden;margin-bottom:6px}
+.progress-fill{height:100%;border-radius:99px;transition:width .25s ease,background .2s ease}
+.progress-fill.danger{background:linear-gradient(90deg,var(--red),var(--red2))}
+.progress-fill.warning{background:linear-gradient(90deg,var(--yellow),var(--yellow2))}
+.progress-fill.success{background:linear-gradient(90deg,var(--green),var(--green2))}
+.progress-meta{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:11px;color:var(--muted)}
+.progress-meta strong{font-size:12px;color:var(--text)}
+.urgency{font-weight:750}
+.urgency.danger{color:var(--red)} .urgency.warning{color:var(--yellow)} .urgency.success{color:var(--green)}
+.remaining-value{height:36px;border:1px solid var(--line);border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:760;background:#fafafa}
+
+/* Inline timeline */
+.timeline-wrap{margin-top:11px;padding-top:11px;border-top:1px solid #f0f0f2;display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center}
+.timeline-caption{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.timeline{position:relative}
+.timeline-line{position:absolute;left:16.7%;right:16.7%;top:10px;height:3px;background:#e7e7eb;border-radius:99px}
+.timeline-steps{display:grid;grid-template-columns:repeat(3,1fr);position:relative}
+.t-step{text-align:center;position:relative}
+.t-dot{width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #c9c9cf;margin:0 auto 6px;box-shadow:0 0 0 4px #fff}
+.t-step.done .t-dot{background:var(--green);border-color:var(--green)}
+.t-step.current .t-dot{border-color:var(--blue)}
+.t-step.warn .t-dot{background:var(--yellow-soft);border-color:var(--yellow)}
+.t-step.bad .t-dot{background:var(--red-soft);border-color:var(--red)}
+.t-step.missing .t-dot{border-style:dashed}
+.t-name{font-size:10px;font-weight:760;color:#55555b;text-transform:uppercase;letter-spacing:.03em}
+.t-date{font-size:11px;color:var(--muted);margin-top:2px}
+.t-date strong{color:var(--text)}
+
+.lower-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(330px,.65fr);gap:16px;margin-top:16px;align-items:start}
+
+/* Calendar */
+.calendar-toolbar{display:flex;align-items:center;gap:8px}
+.calendar-month{font-size:17px;font-weight:760;min-width:170px;text-align:center}
+.calendar-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.cal-leg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.cal-dot{width:9px;height:9px;border-radius:3px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid var(--line);border-top:1px solid var(--line);border-radius:15px;overflow:hidden}
+.cal-weekday{background:#fafafa;padding:9px;text-align:center;font-size:10px;font-weight:760;color:var(--muted);text-transform:uppercase;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.cal-day{min-height:116px;padding:8px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff;position:relative}
+.cal-day.out{background:#fafafa;color:#b6b6bc}
+.cal-day.today{box-shadow:inset 0 0 0 2px rgba(0,113,227,.18)}
+.cal-daynum{font-size:11px;font-weight:760;margin-bottom:6px}
+.cal-events{display:grid;gap:4px}
+.cal-event{
+  border-radius:7px;padding:4px 6px;font-size:10px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  border:1px solid transparent;cursor:default
+}
+.cal-event.start{background:var(--blue-soft);color:#145b9d;border-color:#d6e8ff}
+.cal-event.graphics{background:var(--purple-soft);color:#5c45b0;border-color:#ddd5ff}
+.cal-event.printed{background:var(--green-soft);color:var(--green);border-color:#d8eedf}
+.cal-event.late{background:var(--red-soft);color:var(--red);border-color:#ffd7db}
+
+/* Sidebar */
+.side-stack{display:grid;gap:16px}
+.workload-list{display:grid;gap:12px}
+.workload-item{border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff}
+.workload-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px}
+.workload-head strong{font-size:14px}.workload-head span{font-size:11px;color:var(--muted)}
+.bar{height:8px;background:#eeeef2;border-radius:99px;overflow:hidden}
+.bar>div{height:100%;border-radius:99px;background:linear-gradient(90deg,#6aa9ff,var(--blue));transition:width .25s ease}
+.workload-meta{display:flex;justify-content:space-between;gap:8px;margin-top:7px;color:var(--muted);font-size:11px}
+.team-editor{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px}
+.team-chip{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:6px 8px 6px 11px;font-size:12px;font-weight:650}
+.team-chip button{border:0;background:transparent;color:#9a9aa0;padding:0 3px}
+.add-designer{display:flex;gap:7px}
+.add-designer input{flex:1;min-width:0;border:1px solid var(--line);border-radius:11px;padding:9px 10px;outline:none}
+.logic-box{border:1px solid var(--line);background:#fafafa;border-radius:15px;padding:13px;color:var(--muted);font-size:12px;line-height:1.55}
+.logic-box strong{color:var(--text)}
+.footer-note{margin-top:14px;color:var(--muted);font-size:12px;line-height:1.5}
+
+.toast{
+  position:fixed;right:24px;bottom:24px;background:rgba(29,29,31,.94);color:#fff;padding:12px 15px;border-radius:13px;
+  font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.18);transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s ease;z-index:999
+}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:1250px){
+  .metrics{grid-template-columns:repeat(3,1fr)}
+  .material-grid{grid-template-columns:150px 150px 145px minmax(160px,1fr) 95px}
+  .lower-grid{grid-template-columns:1fr}
+  .side-stack{grid-template-columns:1fr 1fr}
+}
+@media(max-width:980px){
+  .material-grid{grid-template-columns:1fr 1fr 1fr}
+  .progress-block{grid-column:span 2}
+  .timeline-wrap{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .app{padding:17px}
+  .topbar{flex-direction:column}
+  .top-actions{justify-content:flex-start}
+  .metrics{grid-template-columns:1fr 1fr}
+  .settings{grid-template-columns:1fr 1fr}
+  .material-grid{grid-template-columns:1fr 1fr}
+  .progress-block{grid-column:1/-1}
+  .side-stack{grid-template-columns:1fr}
+  .cal-day{min-height:95px;padding:5px}.cal-event{font-size:9px;padding:3px 4px}
+}
+@media(max-width:520px){
+  .metrics,.settings,.material-grid{grid-template-columns:1fr}
+  .progress-block{grid-column:auto}
+  .calendar-grid{font-size:9px}.cal-day{min-height:84px}
+  .calendar-month{min-width:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Fundação Bradesco · Produção</div>
+      <h1>Material Didático FB - Prazos</h1>
+      <p class="subtitle">Painel de produção por disponibilidade do conteúdo, páginas diagramadas, capacidade do time e cronograma de impressão.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="autoAssignBtn">Distribuir pendentes</button>
+      <button class="btn" id="exportBtn">Exportar backup</button>
+      <button class="btn primary" id="addMaterialBtn">+ Material</button>
+    </div>
+  </div>
+
+  <section class="metrics">
+    <div class="card metric">
+      <div class="label">Total do projeto</div>
+      <div class="value" id="metricTotal">13</div>
+      <div class="hint" id="metricTotalHint"></div>
+    </div>
+    <div class="card metric">
+      <div class="label">Diagramação concluída</div>
+      <div class="value good" id="metricDone">—</div>
+      <div class="hint" id="metricDoneHint"></div>
+    </div>
+    <div class="card metric">
+      <div class="label">Limite para gráfica</div>
+      <div class="value" id="metricProdDeadline">—</div>
+      <div class="hint">Último dia seguro para liberar à impressão</div>
+    </div>
+    <div class="card metric">
+      <div class="label">Inícios pendentes</div>
+      <div class="value" id="metricMissingStarts">—</div>
+      <div class="hint">Livros ainda sem previsão de início</div>
+    </div>
+    <div class="card metric">
+      <div class="label">Situação do cronograma</div>
+      <div class="value" id="metricCapacity">—</div>
+      <div class="hint" id="metricCapacityHint"></div>
+    </div>
+  </section>
+
+  <section class="card panel">
+    <div class="panel-title">
+      <div>
+        <h2>Materiais</h2>
+        <p>Agora tudo cabe no painel: dados principais em cima e o fluxo de entrega logo abaixo de cada material.</p>
+      </div>
+      <button class="btn small danger" id="resetBtn">Restaurar base</button>
+    </div>
+
+    <div class="settings">
+      <div class="field"><label>Deadline físico</label><input type="date" id="physicalDeadline"></div>
+      <div class="field"><label>Dias úteis de impressão</label><input type="number" min="1" max="20" id="printDays"></div>
+      <div class="field"><label>Dias úteis / livro completo</label><input type="number" min=".5" max="20" step=".5" id="daysPerBook"></div>
+      <div class="field"><label>Prontos fora da fila</label><input type="number" min="0" max="50" id="readyOutside"></div>
+    </div>
+
+    <div class="deadline-callout">
+      <div style="font-size:21px">⌁</div>
+      <div>
+        <strong id="deadlineTitle">Produção precisa fechar até —</strong>
+        <span id="deadlineText"></span>
+      </div>
+    </div>
+
+    <div id="materialsList" class="materials-list"></div>
+
+    <div class="footer-note">
+      A projeção respeita <strong>início previsto → fila do designer → páginas restantes → gráfica → impressão</strong>. A ordem dos cards também é a ordem considerada para cada designer.
+    </div>
+  </section>
+
+  <section class="lower-grid">
+    <div class="card panel">
+      <div class="panel-title">
+        <div>
+          <h2>Calendário de produção</h2>
+          <p>Início, envio para gráfica e entrega impressa aparecem automaticamente nos respectivos dias.</p>
+        </div>
+        <div class="calendar-toolbar">
+          <button class="btn small" id="prevMonth">←</button>
+          <div class="calendar-month" id="calendarMonth">—</div>
+          <button class="btn small" id="nextMonth">→</button>
+          <button class="btn small" id="deadlineMonth">Deadline</button>
+        </div>
+      </div>
+      <div class="calendar-legend">
+        <span class="cal-leg"><span class="cal-dot" style="background:var(--blue)"></span>Início</span>
+        <span class="cal-leg"><span class="cal-dot" style="background:var(--purple)"></span>Gráfica</span>
+        <span class="cal-leg"><span class="cal-dot" style="background:var(--green)"></span>Impresso</span>
+        <span class="cal-leg"><span class="cal-dot" style="background:var(--red)"></span>Impresso após deadline</span>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+    </div>
+
+    <aside class="side-stack">
+      <div class="card panel">
+        <div class="panel-title">
+          <div><h2>Carga por designer</h2><p>Dias úteis restantes e última entrega projetada.</p></div>
+        </div>
+        <div id="workloadList" class="workload-list"></div>
+      </div>
+
+      <div class="card panel">
+        <div class="panel-title">
+          <div><h2>Equipe</h2><p>Responsáveis disponíveis no projeto.</p></div>
+        </div>
+        <div id="teamEditor" class="team-editor"></div>
+        <div class="add-designer">
+          <input id="newDesigner" placeholder="Novo designer">
+          <button class="btn small" id="addDesignerBtn">Adicionar</button>
+        </div>
+      </div>
+
+      <div class="card panel">
+        <div class="panel-title">
+          <div><h2>Lógica do cronograma</h2></div>
+        </div>
+        <div class="logic-box">
+          <strong>Vermelho:</strong> 0% a 39% ou entrega projetada fora do prazo.<br>
+          <strong>Amarelo:</strong> 40% a 79% ou prazo muito apertado.<br>
+          <strong>Verde:</strong> 80% a 100% e projeção saudável.<br><br>
+          Se dois livros forem do mesmo designer, o segundo só começa depois que o anterior libera a fila — mesmo que o texto já esteja disponível.
+        </div>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(() => {
+  const STORAGE_KEY = "fb_material_didatico_prazos_v3";
+
+  const baseState = {
+    physicalDeadline:"2026-10-30",
+    printDays:5,
+    daysPerBook:5,
+    readyOutside:3,
+    team:["Gabi","Diego","Natalia","Renata"],
+    materials:[
+      {id:"m1",name:"Português 1º ano",owner:"",plannedStart:"",currentPage:96,totalPages:96},
+      {id:"m2",name:"Matemática 1º ano",owner:"Gabi",plannedStart:"",currentPage:58,totalPages:128},
+      {id:"m3",name:"Português 2º ano",owner:"Diego",plannedStart:"",currentPage:43,totalPages:96},
+      {id:"m4",name:"Matemática 2º ano",owner:"Natalia",plannedStart:"",currentPage:0,totalPages:128},
+      {id:"m5",name:"Português 3º ano",owner:"Renata",plannedStart:"",currentPage:0,totalPages:96},
+      {id:"m6",name:"Matemática 3º ano",owner:"",plannedStart:"",currentPage:0,totalPages:128},
+      {id:"m7",name:"Português 4º ano",owner:"",plannedStart:"",currentPage:0,totalPages:96},
+      {id:"m8",name:"Matemática 4º ano",owner:"",plannedStart:"",currentPage:0,totalPages:128},
+      {id:"m9",name:"Português 5º ano",owner:"",plannedStart:"",currentPage:0,totalPages:96},
+      {id:"m10",name:"Matemática 5º ano",owner:"",plannedStart:"",currentPage:0,totalPages:128}
+    ]
+  };
+
+  let state = load();
+  const initialDeadline = parseDate(state.physicalDeadline) || new Date();
+  let calendarYear = initialDeadline.getFullYear();
+  let calendarMonth = initialDeadline.getMonth();
+
+  function clone(o){return JSON.parse(JSON.stringify(o))}
+  function load(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(!raw) return clone(baseState);
+      const s=JSON.parse(raw);
+      const merged={...clone(baseState),...s};
+      merged.team=Array.isArray(s.team)?s.team:clone(baseState.team);
+      merged.materials=Array.isArray(s.materials)?s.materials.map((m,i)=>{
+        const b=baseState.materials[i]||{};
+        return {
+          id:m.id||b.id||("m"+Date.now()+i),
+          name:m.name||b.name||"Novo material",
+          owner:m.owner||"",
+          plannedStart:m.plannedStart||"",
+          currentPage:Number.isFinite(Number(m.currentPage))?Number(m.currentPage):Number(b.currentPage||0),
+          totalPages:Math.max(1,Number(m.totalPages||b.totalPages||96))
+        };
+      }):clone(baseState.materials);
+      return merged;
+    }catch(e){return clone(baseState)}
+  }
+  function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+  function parseDate(str){
+    if(!str)return null;
+    const [y,m,d]=str.split("-").map(Number);
+    return new Date(y,m-1,d,12);
+  }
+  function isoDate(date){
+    const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  }
+  function today(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate(),12)}
+  function easterSunday(year){
+    const f=Math.floor,G=year%19,C=f(year/100),H=(C-f(C/4)-f((8*C+13)/25)+19*G+15)%30,
+    I=H-f(H/28)*(1-f(29/(H+1))*f((21-G)/11)),J=(year+f(year/4)+I+2-C+f(C/4))%7,L=I-J,
+    month=3+f((L+40)/44),day=L+28-31*f(month/4);
+    return new Date(year,month-1,day,12);
+  }
+  function addCalendarDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d}
+  function holidaySet(year){
+    const fixed=[`${year}-01-01`,`${year}-04-21`,`${year}-05-01`,`${year}-09-07`,`${year}-10-12`,`${year}-11-02`,`${year}-11-15`,`${year}-11-20`,`${year}-12-25`];
+    const easter=easterSunday(year);
+    return new Set([...fixed,isoDate(addCalendarDays(easter,-2)),isoDate(addCalendarDays(easter,60))]);
+  }
+  function isBusinessDay(date){const d=date.getDay();return d!==0&&d!==6&&!holidaySet(date.getFullYear()).has(isoDate(date))}
+  function normalizeBusinessDay(date){const d=new Date(date);while(!isBusinessDay(d))d.setDate(d.getDate()+1);return d}
+  function addBusinessDays(date,amount){
+    let d=normalizeBusinessDay(date),left=Math.max(0,Math.ceil(amount));
+    while(left>0){d.setDate(d.getDate()+1);if(isBusinessDay(d))left--}
+    return d;
+  }
+  function subtractBusinessDays(date,amount){
+    const d=new Date(date);let left=Math.max(0,Math.ceil(amount));
+    while(left>0){d.setDate(d.getDate()-1);if(isBusinessDay(d))left--}
+    return d;
+  }
+  function businessDaysBetween(start,end){
+    if(!start||!end)return 0;
+    const s=new Date(start.getFullYear(),start.getMonth(),start.getDate(),12),e=new Date(end.getFullYear(),end.getMonth(),end.getDate(),12);
+    if(e<s)return 0;
+    let n=0,d=new Date(s);
+    while(d<e){d.setDate(d.getDate()+1);if(d<=e&&isBusinessDay(d))n++}
+    return n;
+  }
+  function maxDate(...dates){const v=dates.filter(Boolean);return v.length?new Date(Math.max(...v.map(d=>d.getTime()))):null}
+  function fmtDate(d,short=false){
+    if(!(d instanceof Date)||isNaN(d))return "—";
+    return d.toLocaleDateString("pt-BR",short?{day:"2-digit",month:"2-digit"}:{day:"2-digit",month:"2-digit",year:"numeric"});
+  }
+  function physicalDeadline(){return parseDate(state.physicalDeadline)}
+  function graphicsDeadline(){return subtractBusinessDays(physicalDeadline(),Number(state.printDays||0))}
+  function progressPct(m){
+    const total=Math.max(1,Number(m.totalPages||1)),cur=Math.max(0,Math.min(total,Number(m.currentPage||0)));
+    return Math.max(0,Math.min(100,(cur/total)*100));
+  }
+  function progressClass(p){return p<40?"danger":p<80?"warning":"success"}
+  function progressLabel(p){return p>=100?"Concluído":p<40?"Crítico":p<80?"Atenção":"Bem avançado"}
+  function remainingDays(m){return Number(state.daysPerBook||0)*(1-progressPct(m)/100)}
+
+  function projectionMap(){
+    const out={},cursor={}; state.team.forEach(n=>cursor[n]=null);
+    state.materials.forEach(m=>{
+      const pct=progressPct(m),planned=parseDate(m.plannedStart),rem=remainingDays(m);
+      if(pct>=99.999){
+        const graphics=planned?normalizeBusinessDay(maxDate(planned,today())):today();
+        out[m.id]={planned,effectiveStart:planned,graphics,printed:addBusinessDays(graphics,Number(state.printDays||0)),done:true};
+        return;
+      }
+      if(!planned){out[m.id]={planned:null,effectiveStart:null,graphics:null,printed:null,done:false};return}
+      if(!m.owner||!cursor.hasOwnProperty(m.owner)){out[m.id]={planned,effectiveStart:null,graphics:null,printed:null,done:false};return}
+      const effective=normalizeBusinessDay(maxDate(planned,cursor[m.owner],today()));
+      const graphics=addBusinessDays(effective,Math.max(0,Math.ceil(rem)));
+      const printed=addBusinessDays(graphics,Number(state.printDays||0));
+      cursor[m.owner]=graphics;
+      out[m.id]={planned,effectiveStart:effective,graphics,printed,done:false};
+    });
+    return out;
+  }
+
+  function riskFor(m,p){
+    const pct=progressPct(m);
+    if(pct>=99.999){
+      if(p?.printed&&p.printed>physicalDeadline())return{label:"Impressão atrasada",cls:"bad"};
+      return{label:"Diagramação OK",cls:"good"};
+    }
+    if(!m.plannedStart)return{label:"Definir início",cls:"warn"};
+    if(!m.owner)return{label:"Sem responsável",cls:"warn"};
+    if(!p?.printed)return{label:"Sem projeção",cls:"muted"};
+    if(p.printed>physicalDeadline())return{label:"Não fecha prazo",cls:"bad"};
+    if(businessDaysBetween(p.printed,physicalDeadline())<=1)return{label:"Prazo apertado",cls:"warn"};
+    return{label:"No prazo",cls:"good"};
+  }
+
+  function timelineClass(stage,m,p){
+    const now=today(),deadline=physicalDeadline(),pct=progressPct(m);
+    if(stage==="start"){
+      if(!p?.planned)return"missing";
+      return p.planned<=now?"done":"current";
+    }
+    if(stage==="graphics"){
+      if(!p?.graphics)return"missing";
+      if(p.graphics<=now||pct>=99.999)return"done";
+      return p.graphics>graphicsDeadline()?"bad":"current";
+    }
+    if(stage==="printed"){
+      if(!p?.printed)return"missing";
+      if(p.printed<=now)return"done";
+      if(p.printed>deadline)return"bad";
+      if(businessDaysBetween(p.printed,deadline)<=1)return"warn";
+      return"current";
+    }
+    return"";
+  }
+
+  function timelineMarkup(m,p){
+    return `
+      <div class="timeline-wrap">
+        <div class="timeline-caption">Fluxo de entrega</div>
+        <div class="timeline">
+          <div class="timeline-line"></div>
+          <div class="timeline-steps">
+            <div class="t-step ${timelineClass("start",m,p)}">
+              <div class="t-dot"></div><div class="t-name">Início</div>
+              <div class="t-date">${p?.planned?`<strong>${fmtDate(p.planned,true)}</strong>`:"definir"}</div>
+            </div>
+            <div class="t-step ${timelineClass("graphics",m,p)}">
+              <div class="t-dot"></div><div class="t-name">Gráfica</div>
+              <div class="t-date">${p?.graphics?`<strong>${fmtDate(p.graphics,true)}</strong>`:"—"}</div>
+            </div>
+            <div class="t-step ${timelineClass("printed",m,p)}">
+              <div class="t-dot"></div><div class="t-name">Impresso</div>
+              <div class="t-date">${p?.printed?`<strong>${fmtDate(p.printed,true)}</strong>`:"—"}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function scheduleStatus(projections){
+    const active=state.materials.filter(m=>progressPct(m)<99.999);
+    const missingStarts=active.filter(m=>!m.plannedStart).length,missingOwners=active.filter(m=>!m.owner).length;
+    const late=active.filter(m=>projections[m.id]?.printed&&projections[m.id].printed>physicalDeadline()).length;
+    if(late)return{label:"Crítico",cls:"bad",hint:`${late} material(is) projetado(s) após ${fmtDate(physicalDeadline())}.`};
+    if(missingStarts||missingOwners){
+      const bits=[]; if(missingStarts)bits.push(`${missingStarts} sem início`); if(missingOwners)bits.push(`${missingOwners} sem responsável`);
+      return{label:"Incompleto",cls:"warn",hint:bits.join(" · ")};
+    }
+    return{label:"No prazo",cls:"good",hint:"Todas as projeções terminam dentro do deadline físico."};
+  }
+
+  function renderMetrics(projections){
+    const doneInside=state.materials.filter(m=>progressPct(m)>=99.999).length;
+    const total=state.materials.length+Number(state.readyOutside||0),doneTotal=Number(state.readyOutside||0)+doneInside;
+    const missingStarts=state.materials.filter(m=>progressPct(m)<99.999&&!m.plannedStart).length;
+    document.querySelector("#metricTotal").textContent=total;
+    document.querySelector("#metricTotalHint").textContent=`${state.materials.length} acompanhados + ${state.readyOutside} já prontos`;
+    document.querySelector("#metricDone").textContent=doneTotal;
+    document.querySelector("#metricDoneHint").textContent=`${doneInside} com diagramação 100% + ${state.readyOutside} fora da fila`;
+    document.querySelector("#metricProdDeadline").textContent=fmtDate(graphicsDeadline(),true);
+    const ms=document.querySelector("#metricMissingStarts"); ms.textContent=missingStarts;
+    ms.className="value "+(missingStarts===0?"good":missingStarts<=2?"warn":"bad");
+    const st=scheduleStatus(projections),cap=document.querySelector("#metricCapacity");
+    cap.textContent=st.label; cap.className="value "+st.cls; document.querySelector("#metricCapacityHint").textContent=st.hint;
+    document.querySelector("#deadlineTitle").textContent=`Tudo precisa chegar à gráfica até ${fmtDate(graphicsDeadline())}`;
+    document.querySelector("#deadlineText").textContent=`Deadline físico: ${fmtDate(physicalDeadline())}. Com ${state.printDays} dias úteis de impressão, ${fmtDate(graphicsDeadline())} é o último dia seguro para liberar um material à gráfica.`;
+  }
+
+  function renderMaterials(projections){
+    const box=document.querySelector("#materialsList"); box.innerHTML="";
+    state.materials.forEach((m,index)=>{
+      const pct=progressPct(m),pc=progressClass(pct),rem=remainingDays(m),p=projections[m.id],risk=riskFor(m,p);
+      const card=document.createElement("div"); card.className="material-card"+(pct<40&&pct<99.999?" behind":""); card.dataset.cardId=m.id;
+      card.innerHTML=`
+        <div class="material-head">
+          <div class="material-index">${index+1}</div>
+          <input class="material-name" data-action="name" data-id="${m.id}" value="${escapeHtml(m.name)}">
+          <span class="risk ${risk.cls}" data-role="risk">${risk.label}</span>
+          <div class="material-actions">
+            <button class="icon-btn" data-action="up" data-id="${m.id}" title="Subir prioridade">↑</button>
+            <button class="icon-btn" data-action="down" data-id="${m.id}" title="Descer prioridade">↓</button>
+            <button class="icon-btn" data-action="delete" data-id="${m.id}" title="Excluir">×</button>
+          </div>
+        </div>
+        <div class="material-grid">
+          <div class="mini-field">
+            <label>Responsável</label>
+            <select data-action="owner" data-id="${m.id}">
+              <option value="">Sem responsável</option>
+              ${state.team.map(n=>`<option value="${escapeHtml(n)}" ${m.owner===n?"selected":""}>${escapeHtml(n)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="mini-field">
+            <label>Início previsto</label>
+            <input type="date" data-action="plannedStart" data-id="${m.id}" value="${m.plannedStart||""}">
+          </div>
+          <div class="mini-field">
+            <label>Página atual / total</label>
+            <div class="page-inputs">
+              <input type="number" min="0" max="${m.totalPages}" data-action="currentPage" data-id="${m.id}" value="${m.currentPage}">
+              <span class="page-sep">/</span>
+              <input type="number" min="1" data-action="totalPages" data-id="${m.id}" value="${m.totalPages}">
+            </div>
+          </div>
+          <div class="progress-block">
+            <label style="display:block;font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.045em;margin:0 0 5px 2px">Progresso</label>
+            <div class="progress-track"><div class="progress-fill ${pc}" data-role="fill" style="width:${pct}%"></div></div>
+            <div class="progress-meta"><strong data-role="pct">${pct.toFixed(0)}%</strong><span class="urgency ${pc}" data-role="urgency">${progressLabel(pct)}</span></div>
+          </div>
+          <div>
+            <label style="display:block;font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.045em;margin:0 0 5px 2px">Carga restante</label>
+            <div class="remaining-value" data-role="remaining">${rem.toFixed(rem%1?1:0)} d.u.</div>
+          </div>
+        </div>
+        <div data-role="timeline">${timelineMarkup(m,p)}</div>`;
+      box.appendChild(card);
+    });
+  }
+
+  function workloadData(projections){
+    const result={};state.team.forEach(n=>result[n]={days:0,count:0,last:null});let unassigned=0;
+    state.materials.forEach(m=>{
+      const rem=remainingDays(m); if(rem<=.001)return;
+      if(m.owner&&result[m.owner]){
+        result[m.owner].days+=rem;result[m.owner].count++;
+        const p=projections[m.id];if(p?.printed&&(!result[m.owner].last||p.printed>result[m.owner].last))result[m.owner].last=p.printed;
+      }else unassigned+=rem;
+    });
+    return{result,unassigned};
+  }
+  function renderWorkload(projections){
+    const box=document.querySelector("#workloadList"),{result,unassigned}=workloadData(projections);box.innerHTML="";
+    const avail=businessDaysBetween(today(),graphicsDeadline());
+    state.team.forEach(n=>{
+      const d=result[n],late=d.last&&d.last>physicalDeadline(),pct=avail>0?Math.min(100,d.days/avail*100):100;
+      const el=document.createElement("div");el.className="workload-item";
+      el.innerHTML=`<div class="workload-head"><strong>${escapeHtml(n)}</strong><span>${d.count} material(is)</span></div>
+      <div class="bar"><div style="width:${pct}%;${late?"background:linear-gradient(90deg,#ff9f0a,#d70015)":""}"></div></div>
+      <div class="workload-meta"><span>${d.days.toFixed(1)} d.u. restantes</span><span>${d.last?`último impresso ${fmtDate(d.last,true)}`:"sem projeção"}</span></div>`;
+      box.appendChild(el);
+    });
+    if(unassigned>0){
+      const el=document.createElement("div");el.className="workload-item";el.style.background="var(--yellow-soft)";
+      el.innerHTML=`<div class="workload-head"><strong>Sem responsável</strong><span>precisa distribuir</span></div>
+      <div class="bar"><div style="width:100%;background:linear-gradient(90deg,#ffd45a,#d79b00)"></div></div>
+      <div class="workload-meta"><span>${unassigned.toFixed(1)} d.u. pendentes</span><span>sem projeção completa</span></div>`;
+      box.appendChild(el);
+    }
+  }
+  function renderTeam(){
+    const box=document.querySelector("#teamEditor");box.innerHTML="";
+    state.team.forEach(n=>{
+      const c=document.createElement("div");c.className="team-chip";
+      c.innerHTML=`<span>${escapeHtml(n)}</span><button data-remove-designer="${escapeHtml(n)}" title="Remover">×</button>`;box.appendChild(c);
+    });
+  }
+
+  function shortName(name){
+    return name.replace("Matemática","Mat.").replace("Português","Port.").replace(" ano","").replace("º","º");
+  }
+
+  function calendarEvents(projections){
+    const events={};
+    const push=(date,event)=>{
+      if(!date)return;
+      const key=isoDate(date);(events[key]??=[]).push(event);
+    };
+    state.materials.forEach(m=>{
+      const p=projections[m.id],risk=riskFor(m,p),label=shortName(m.name);
+      if(p?.planned)push(p.planned,{type:"start",text:`${label} · início`,title:`${m.name} — início`});
+      if(p?.graphics)push(p.graphics,{type:"graphics",text:`${label} · gráfica`,title:`${m.name} — gráfica`});
+      if(p?.printed)push(p.printed,{type:p.printed>physicalDeadline()?"late":"printed",text:`${label} · impresso`,title:`${m.name} — impresso`});
+    });
+    return events;
+  }
+
+  function renderCalendar(projections){
+    const grid=document.querySelector("#calendarGrid");
+    const monthStart=new Date(calendarYear,calendarMonth,1,12);
+    document.querySelector("#calendarMonth").textContent=monthStart.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+    grid.innerHTML="";
+    ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].forEach(d=>{
+      const h=document.createElement("div");h.className="cal-weekday";h.textContent=d;grid.appendChild(h);
+    });
+
+    let weekday=monthStart.getDay(); // Sun 0
+    let offset=(weekday+6)%7; // Monday 0
+    const start=new Date(calendarYear,calendarMonth,1-offset,12);
+    const events=calendarEvents(projections);
+    const todayIso=isoDate(today());
+
+    for(let i=0;i<42;i++){
+      const d=new Date(start);d.setDate(start.getDate()+i);
+      const key=isoDate(d),out=d.getMonth()!==calendarMonth;
+      const cell=document.createElement("div");
+      cell.className="cal-day"+(out?" out":"")+(key===todayIso?" today":"");
+      const evs=events[key]||[];
+      cell.innerHTML=`<div class="cal-daynum">${d.getDate()}</div><div class="cal-events">${evs.map(e=>`<div class="cal-event ${e.type}" title="${escapeHtml(e.title)}">${escapeHtml(e.text)}</div>`).join("")}</div>`;
+      grid.appendChild(cell);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+  function toast(msg){
+    const el=document.querySelector("#toast");el.textContent=msg;el.classList.add("show");
+    clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),1700);
+  }
+
+  function render(){
+    save();
+    document.querySelector("#physicalDeadline").value=state.physicalDeadline;
+    document.querySelector("#printDays").value=state.printDays;
+    document.querySelector("#daysPerBook").value=state.daysPerBook;
+    document.querySelector("#readyOutside").value=state.readyOutside;
+    const projections=projectionMap();
+    renderMetrics(projections);renderMaterials(projections);renderWorkload(projections);renderTeam();renderCalendar(projections);
+  }
+
+  function updateAfterPageEdit(){
+    save();
+    const projections=projectionMap();
+    renderMetrics(projections);renderWorkload(projections);renderCalendar(projections);
+    state.materials.forEach(m=>{
+      const card=document.querySelector(`[data-card-id="${m.id}"]`);if(!card)return;
+      const pct=progressPct(m),pc=progressClass(pct),rem=remainingDays(m),p=projections[m.id],risk=riskFor(m,p);
+      const fill=card.querySelector('[data-role="fill"]');if(fill){fill.className=`progress-fill ${pc}`;fill.style.width=`${pct}%`}
+      const pctEl=card.querySelector('[data-role="pct"]');if(pctEl)pctEl.textContent=`${pct.toFixed(0)}%`;
+      const urg=card.querySelector('[data-role="urgency"]');if(urg){urg.className=`urgency ${pc}`;urg.textContent=progressLabel(pct)}
+      const remEl=card.querySelector('[data-role="remaining"]');if(remEl)remEl.textContent=`${rem.toFixed(rem%1?1:0)} d.u.`;
+      const riskEl=card.querySelector('[data-role="risk"]');if(riskEl){riskEl.className=`risk ${risk.cls}`;riskEl.textContent=risk.label}
+      const tl=card.querySelector('[data-role="timeline"]');if(tl)tl.innerHTML=timelineMarkup(m,p);
+      card.classList.toggle("behind",pct<40&&pct<99.999);
+    });
+  }
+
+  document.querySelector("#materialsList").addEventListener("input",e=>{
+    const a=e.target.dataset.action,id=e.target.dataset.id;if(!a||!id)return;
+    const m=state.materials.find(x=>x.id===id);if(!m)return;
+    if(a==="name"){m.name=e.target.value;save();return}
+    if(a==="currentPage"){
+      m.currentPage=Math.max(0,Math.min(Number(m.totalPages||1),Number(e.target.value||0)));updateAfterPageEdit();
+    }
+    if(a==="totalPages"){
+      m.totalPages=Math.max(1,Number(e.target.value||1));if(m.currentPage>m.totalPages)m.currentPage=m.totalPages;updateAfterPageEdit();
+    }
+  });
+
+  document.querySelector("#materialsList").addEventListener("change",e=>{
+    const a=e.target.dataset.action,id=e.target.dataset.id;if(!a||!id)return;
+    const m=state.materials.find(x=>x.id===id);if(!m)return;
+    if(a==="owner")m.owner=e.target.value;
+    if(a==="plannedStart")m.plannedStart=e.target.value;
+    if(a==="name")m.name=e.target.value;
+    if(a==="currentPage")m.currentPage=Math.max(0,Math.min(Number(m.totalPages||1),Number(e.target.value||0)));
+    if(a==="totalPages"){m.totalPages=Math.max(1,Number(e.target.value||1));if(m.currentPage>m.totalPages)m.currentPage=m.totalPages}
+    render();
+  });
+
+  document.querySelector("#materialsList").addEventListener("click",e=>{
+    const b=e.target.closest("button[data-action]");if(!b)return;
+    const id=b.dataset.id,a=b.dataset.action,idx=state.materials.findIndex(x=>x.id===id);if(idx<0)return;
+    if(a==="up"&&idx>0){[state.materials[idx-1],state.materials[idx]]=[state.materials[idx],state.materials[idx-1]];render()}
+    if(a==="down"&&idx<state.materials.length-1){[state.materials[idx+1],state.materials[idx]]=[state.materials[idx],state.materials[idx+1]];render()}
+    if(a==="delete"&&confirm("Excluir este material do acompanhamento?")){state.materials.splice(idx,1);render()}
+  });
+
+  document.querySelector("#physicalDeadline").addEventListener("change",e=>{
+    state.physicalDeadline=e.target.value;
+    const d=parseDate(state.physicalDeadline);if(d){calendarYear=d.getFullYear();calendarMonth=d.getMonth()}
+    render();
+  });
+  document.querySelector("#printDays").addEventListener("change",e=>{state.printDays=Math.max(1,Number(e.target.value||5));render()});
+  document.querySelector("#daysPerBook").addEventListener("change",e=>{state.daysPerBook=Math.max(.5,Number(e.target.value||5));render()});
+  document.querySelector("#readyOutside").addEventListener("change",e=>{state.readyOutside=Math.max(0,Number(e.target.value||0));render()});
+
+  document.querySelector("#prevMonth").addEventListener("click",()=>{calendarMonth--;if(calendarMonth<0){calendarMonth=11;calendarYear--}renderCalendar(projectionMap())});
+  document.querySelector("#nextMonth").addEventListener("click",()=>{calendarMonth++;if(calendarMonth>11){calendarMonth=0;calendarYear++}renderCalendar(projectionMap())});
+  document.querySelector("#deadlineMonth").addEventListener("click",()=>{const d=physicalDeadline();calendarYear=d.getFullYear();calendarMonth=d.getMonth();renderCalendar(projectionMap())});
+
+  document.querySelector("#autoAssignBtn").addEventListener("click",()=>{
+    if(!state.team.length){toast("Adicione pelo menos um designer.");return}
+    const loads=Object.fromEntries(state.team.map(n=>[n,0]));
+    state.materials.forEach(m=>{if(m.owner&&loads.hasOwnProperty(m.owner))loads[m.owner]+=remainingDays(m)});
+    state.materials.filter(m=>!m.owner&&remainingDays(m)>.001).forEach(m=>{
+      const target=[...state.team].sort((a,b)=>loads[a]-loads[b])[0];m.owner=target;loads[target]+=remainingDays(m);
+    });
+    render();toast("Pendentes distribuídos pela menor carga.");
+  });
+
+  document.querySelector("#addMaterialBtn").addEventListener("click",()=>{
+    state.materials.push({id:"m"+Date.now(),name:"Novo material",owner:"",plannedStart:"",currentPage:0,totalPages:96});
+    render();toast("Material adicionado.");
+  });
+
+  document.querySelector("#exportBtn").addEventListener("click",()=>{
+    const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="material-didatico-fb-backup.json";a.click();URL.revokeObjectURL(url);
+  });
+
+  document.querySelector("#addDesignerBtn").addEventListener("click",()=>{
+    const input=document.querySelector("#newDesigner"),name=input.value.trim();if(!name)return;
+    if(state.team.includes(name)){toast("Esse designer já está na equipe.");return}
+    state.team.push(name);input.value="";render();
+  });
+  document.querySelector("#newDesigner").addEventListener("keydown",e=>{if(e.key==="Enter")document.querySelector("#addDesignerBtn").click()});
+  document.querySelector("#teamEditor").addEventListener("click",e=>{
+    const b=e.target.closest("[data-remove-designer]");if(!b)return;
+    const name=b.dataset.removeDesigner,used=state.materials.some(m=>m.owner===name);
+    if(used&&!confirm(`${name} tem materiais atribuídos. Remover mesmo assim?`))return;
+    state.team=state.team.filter(n=>n!==name);state.materials.forEach(m=>{if(m.owner===name)m.owner=""});render();
+  });
+  document.querySelector("#resetBtn").addEventListener("click",()=>{
+    if(confirm("Restaurar os dados iniciais e apagar as alterações salvas neste navegador?")){
+      state=clone(baseState);const d=parseDate(state.physicalDeadline);calendarYear=d.getFullYear();calendarMonth=d.getMonth();render();toast("Base restaurada.");
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
