@@ -52,6 +52,52 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .sync-pill.error{color:var(--red);background:var(--red-soft);border-color:#ffd7db}
 .sync-pill.error::before{background:var(--red)}
 
+.user-pill{
+  display:none;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:999px;
+  padding:7px 8px 7px 11px;font-size:12px;font-weight:700;color:var(--text);white-space:nowrap
+}
+.user-pill.show{display:inline-flex}
+.user-pill button{
+  border:0;background:#f3f3f5;color:var(--muted);border-radius:999px;padding:4px 7px;font-size:11px;cursor:pointer
+}
+.user-pill button:hover{color:var(--text);background:#ececef}
+
+.identity-gate{
+  position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:22px;
+  background:rgba(245,245,247,.96);backdrop-filter:blur(18px)
+}
+.identity-gate.hidden{display:none}
+.identity-card{
+  width:min(440px,100%);background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:26px;
+  box-shadow:0 28px 70px rgba(0,0,0,.12);padding:30px
+}
+.identity-brand{
+  color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px
+}
+.identity-card h2{font-size:30px;letter-spacing:-.035em;margin:0 0 9px}
+.identity-card .identity-sub{margin:0 0 24px;color:var(--muted);font-size:14px;line-height:1.5}
+.identity-field{margin-bottom:14px}
+.identity-field label{
+  display:block;font-size:11px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px 2px
+}
+.identity-field input{
+  width:100%;height:48px;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--text);
+  padding:0 13px;outline:none;font-size:16px;transition:border-color .14s ease,box-shadow .14s ease
+}
+.identity-field input:focus{border-color:#9bc9f8;box-shadow:0 0 0 4px rgba(0,113,227,.07)}
+.identity-field input.pin{
+  text-align:center;font-size:24px;font-weight:800;letter-spacing:.38em;padding-left:calc(13px + .38em)
+}
+.identity-submit{width:100%;height:48px;margin-top:3px}
+.identity-note{
+  margin:15px 2px 0;color:var(--muted);font-size:11px;line-height:1.45;text-align:center
+}
+.identity-error{
+  display:none;margin:0 0 13px;padding:10px 12px;border-radius:11px;background:var(--red-soft);color:var(--red);
+  font-size:12px;font-weight:650
+}
+.identity-error.show{display:block}
+
 .card{background:rgba(255,255,255,.96);border:1px solid rgba(0,0,0,.055);border-radius:var(--radius);box-shadow:var(--shadow)}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:16px}
 .metric{padding:18px;min-height:132px;display:flex;flex-direction:column;justify-content:space-between}
@@ -222,7 +268,28 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 </style>
 </head>
 <body>
-<div class="app">
+<div class="identity-gate" id="identityGate">
+  <div class="identity-card">
+    <div class="identity-brand">Fundação Bradesco · Produção</div>
+    <h2>Quem está usando?</h2>
+    <p class="identity-sub">Digite seu nome e um PIN de 4 números. Se for seu primeiro acesso, esse nome e PIN serão cadastrados automaticamente.</p>
+    <form id="identityForm">
+      <div class="identity-error" id="identityError"></div>
+      <div class="identity-field">
+        <label>Seu nome</label>
+        <input id="identityName" type="text" maxlength="60" autocomplete="name" placeholder="Ex.: Alessandra" required>
+      </div>
+      <div class="identity-field">
+        <label>PIN de 4 números</label>
+        <input id="identityPin" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" required>
+      </div>
+      <button class="btn primary identity-submit" id="identitySubmit" type="submit">Entrar no painel</button>
+    </form>
+    <div class="identity-note">O PIN identifica quem está fazendo as alterações. Ele não muda permissões no painel.</div>
+  </div>
+</div>
+
+<div class="app" id="mainApp">
   <div class="topbar">
     <div>
       <div class="eyebrow">Fundação Bradesco · Produção</div>
@@ -230,6 +297,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       <p class="subtitle">Painel de produção por disponibilidade do conteúdo, páginas diagramadas, capacidade do time e cronograma de impressão.</p>
     </div>
     <div class="top-actions">
+      <div class="user-pill" id="currentUserPill"><span id="currentUserName">—</span><button id="switchUserBtn" type="button">Trocar</button></div>
       <div class="sync-pill syncing" id="syncStatus" title="Status da sincronização com o Supabase">Conectando…</div>
       <button class="btn" id="autoAssignBtn">Distribuir pendentes</button>
       <button class="btn" id="exportBtn">Exportar backup</button>
@@ -363,6 +431,11 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VbEDwOcj-i8RWgmdKjvPWg_w2dQryK4";
   const DB_TABLE = "material_didatico_state";
   const DB_ROW_ID = "main";
+  const SESSION_KEY = "fb_material_session_v1";
+  const USER_KEY = "fb_material_user_v1";
+  const DEVICE_KEY = "fb_material_device_v1";
+  const FUNCTION_URL = SUPABASE_URL + "/functions/v1/material-api";
+  const CLIENT_INSTANCE_ID = crypto.randomUUID();
 
   const db = window.supabase?.createClient
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
@@ -393,6 +466,9 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   };
 
   let state = load();
+  let currentUser = null;
+  let currentRevision = 0;
+  let supabaseInitialized = false;
   const initialDeadline = parseDate(state.physicalDeadline) || new Date();
   let calendarYear = initialDeadline.getFullYear();
   let calendarMonth = initialDeadline.getMonth();
@@ -431,9 +507,74 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     el.className="sync-pill "+tone;
   }
 
+  function getDeviceId(){
+    let id=localStorage.getItem(DEVICE_KEY);
+    if(!id){
+      id=crypto.randomUUID();
+      localStorage.setItem(DEVICE_KEY,id);
+    }
+    return id;
+  }
+
+  function getSessionToken(){
+    return localStorage.getItem(SESSION_KEY)||"";
+  }
+
+  function showIdentityError(message){
+    const el=document.querySelector("#identityError");
+    el.textContent=message;
+    el.classList.toggle("show",Boolean(message));
+  }
+
+  function setIdentityLoading(loading,label){
+    const btn=document.querySelector("#identitySubmit");
+    btn.disabled=loading;
+    btn.textContent=loading?(label||"Entrando…"):"Entrar no painel";
+  }
+
+  function applyIdentityUi(){
+    const gate=document.querySelector("#identityGate");
+    const pill=document.querySelector("#currentUserPill");
+    if(currentUser){
+      gate.classList.add("hidden");
+      pill.classList.add("show");
+      document.querySelector("#currentUserName").textContent="Usando como "+currentUser.display_name;
+    }else{
+      gate.classList.remove("hidden");
+      pill.classList.remove("show");
+    }
+  }
+
+  async function callMaterialApi(body,{session=true}={}){
+    const headers={"Content-Type":"application/json"};
+    const token=getSessionToken();
+    if(session&&token)headers["x-app-session"]=token;
+
+    const response=await fetch(FUNCTION_URL,{
+      method:"POST",
+      headers,
+      body:JSON.stringify({
+        ...body,
+        device_id:getDeviceId(),
+        client_instance_id:CLIENT_INSTANCE_ID
+      })
+    });
+
+    let payload={};
+    try{payload=await response.json()}catch(_){}
+
+    if(!response.ok){
+      const err=new Error(payload.error||("Erro "+response.status));
+      err.status=response.status;
+      err.payload=payload;
+      throw err;
+    }
+    return payload;
+  }
+
   function save(){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
-    if(remoteReady&&!applyingRemote)scheduleRemoteSave();
+    if(remoteReady&&!applyingRemote&&currentUser)scheduleRemoteSave();
   }
 
   function scheduleRemoteSave(){
@@ -443,41 +584,68 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   }
 
   async function pushStateToSupabase(){
-    if(!db||!remoteReady||applyingRemote)return;
-    const snapshot=clone(state);
-    const {error}=await db
-      .from(DB_TABLE)
-      .upsert({
-        id:DB_ROW_ID,
-        state:snapshot,
-        updated_at:new Date().toISOString()
-      },{onConflict:"id"});
+    if(!remoteReady||applyingRemote||!currentUser)return;
 
-    if(error){
-      console.error("Erro ao salvar no Supabase:",error);
+    const snapshot=clone(state);
+    const expectedRevision=currentRevision;
+
+    try{
+      const result=await callMaterialApi({
+        action:"save_state",
+        state:snapshot,
+        revision:expectedRevision
+      });
+
+      currentRevision=Number(result.revision??currentRevision);
+      setSyncStatus("Sincronizado","online");
+    }catch(error){
+      if(error.status===409&&error.payload?.state){
+        applyingRemote=true;
+        state=normalizeState(error.payload.state);
+        currentRevision=Number(error.payload.revision||0);
+        localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+        render();
+        applyingRemote=false;
+        setSyncStatus("Atualizado por outra pessoa","warn");
+        toast("Outra pessoa atualizou o painel antes de você. Recarreguei a versão mais recente.");
+        return;
+      }
+
+      if(error.status===401){
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(USER_KEY);
+        currentUser=null;
+        remoteReady=false;
+        setSyncStatus("Identificação necessária","warn");
+        applyIdentityUi();
+        return;
+      }
+
+      console.error("Erro ao salvar:",error);
       setSyncStatus("Erro ao salvar","error");
-      return;
     }
-    setSyncStatus("Sincronizado","online");
   }
 
   async function initSupabase(){
+    if(supabaseInitialized)return;
     if(!db){
       setSyncStatus("Supabase indisponível","error");
       return;
     }
 
+    supabaseInitialized=true;
     setSyncStatus("Conectando…","syncing");
 
     const {data,error}=await db
       .from(DB_TABLE)
-      .select("state,updated_at")
+      .select("state,revision,updated_at,updated_client_id")
       .eq("id",DB_ROW_ID)
       .maybeSingle();
 
     if(error){
       console.error("Supabase ainda não configurado:",error);
       setSyncStatus("Configurar banco","warn");
+      supabaseInitialized=false;
       return;
     }
 
@@ -487,6 +655,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       !Array.isArray(data.state)&&
       Object.keys(data.state).length>0;
 
+    currentRevision=Number(data?.revision||0);
     remoteReady=true;
 
     if(hasRemoteState){
@@ -503,7 +672,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       .on(
         "postgres_changes",
         {
-          event:"*",
+          event:"UPDATE",
           schema:"public",
           table:DB_TABLE,
           filter:"id=eq."+DB_ROW_ID
@@ -511,6 +680,14 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
         payload=>{
           const incoming=payload?.new?.state;
           if(!incoming||typeof incoming!=="object")return;
+
+          currentRevision=Number(payload.new?.revision||currentRevision);
+
+          // Não re-renderiza o próprio eco do Realtime; isso evita perder foco ao digitar páginas.
+          if(payload.new?.updated_client_id===CLIENT_INSTANCE_ID){
+            setSyncStatus("Online · tempo real","online");
+            return;
+          }
 
           applyingRemote=true;
           state=normalizeState(incoming);
@@ -526,6 +703,65 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
         else if(status==="CLOSED")setSyncStatus("Desconectado","warn");
       });
   }
+
+  async function initIdentity(){
+    applyIdentityUi();
+    const token=getSessionToken();
+    if(!token){
+      setSyncStatus("Identificação necessária","warn");
+      document.querySelector("#identityName").focus();
+      return;
+    }
+
+    try{
+      setSyncStatus("Identificando…","syncing");
+      const result=await callMaterialApi({action:"check_session"});
+      currentUser=result.user;
+      localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
+      applyIdentityUi();
+      await initSupabase();
+    }catch(error){
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(USER_KEY);
+      currentUser=null;
+      setSyncStatus("Identificação necessária","warn");
+      applyIdentityUi();
+      document.querySelector("#identityName").focus();
+    }
+  }
+
+  async function loginIdentity(name,pin){
+    showIdentityError("");
+    setIdentityLoading(true,"Entrando…");
+    try{
+      const result=await callMaterialApi({
+        action:"login",
+        name,
+        pin
+      },{session:false});
+
+      localStorage.setItem(SESSION_KEY,result.session_token);
+      currentUser=result.user;
+      localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
+      applyIdentityUi();
+      setSyncStatus(result.created?"Perfil criado":"Identificado","online");
+      await initSupabase();
+      if(result.created)toast("Perfil criado. Nas próximas vezes, use o mesmo nome e PIN.");
+    }catch(error){
+      if(error.status===423){
+        showIdentityError(error.payload?.error||"Muitas tentativas. Tente novamente mais tarde.");
+      }else if(error.status===401){
+        showIdentityError("PIN incorreto para esse nome.");
+      }else if(error.status===404){
+        showIdentityError("A função do Supabase ainda não foi configurada.");
+      }else{
+        showIdentityError(error.message||"Não foi possível entrar.");
+      }
+    }finally{
+      setIdentityLoading(false);
+    }
+  }
+
   function parseDate(str){
     if(!str)return null;
     const [y,m,d]=str.split("-").map(Number);
@@ -860,6 +1096,34 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     });
   }
 
+  document.querySelector("#identityForm").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const name=document.querySelector("#identityName").value.trim();
+    const pin=document.querySelector("#identityPin").value.replace(/\D/g,"").slice(0,4);
+
+    if(name.length<2){
+      showIdentityError("Digite seu nome.");
+      return;
+    }
+    if(!/^\d{4}$/.test(pin)){
+      showIdentityError("O PIN precisa ter exatamente 4 números.");
+      return;
+    }
+
+    await loginIdentity(name,pin);
+  });
+
+  document.querySelector("#identityPin").addEventListener("input",e=>{
+    e.target.value=e.target.value.replace(/\D/g,"").slice(0,4);
+  });
+
+  document.querySelector("#switchUserBtn").addEventListener("click",()=>{
+    if(!confirm("Trocar a pessoa que está usando o painel?"))return;
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(USER_KEY);
+    location.reload();
+  });
+
   document.querySelector("#materialsList").addEventListener("input",e=>{
     const a=e.target.dataset.action,id=e.target.dataset.id;if(!a||!id)return;
     const m=state.materials.find(x=>x.id===id);if(!m)return;
@@ -937,13 +1201,13 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     state.team=state.team.filter(n=>n!==name);state.materials.forEach(m=>{if(m.owner===name)m.owner=""});render();
   });
   document.querySelector("#resetBtn").addEventListener("click",()=>{
-    if(confirm("Restaurar os dados iniciais e apagar as alterações salvas neste navegador?")){
+    if(confirm("Restaurar a base inicial para todos os usuários do painel?")){
       state=clone(baseState);const d=parseDate(state.physicalDeadline);calendarYear=d.getFullYear();calendarMonth=d.getMonth();render();toast("Base restaurada.");
     }
   });
 
   render();
-  initSupabase();
+  initIdentity();
 })();
 </script>
 </body>
