@@ -260,6 +260,21 @@ function diffState(oldState: any, nextState: any) {
         });
       }
     }
+
+    for (const stage of ["start", "inProgress", "review", "amendments", "fileClosing", "sentToPrint", "completed"]) {
+      const before = prev?.flow?.[stage] ?? "";
+      const after = (next as any)?.flow?.[stage] ?? "";
+      if (before !== after) {
+        changes.push({
+          scope: "material",
+          material_id: id,
+          material_name: (next as any).name || prev.name,
+          field: `flow.${stage}`,
+          from: before || null,
+          to: after || null,
+        });
+      }
+    }
   }
 
   for (const [id, prev] of oldMaterials) {
