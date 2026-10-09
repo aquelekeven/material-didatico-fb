@@ -116,6 +116,10 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .app-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:22px}
 .app-modal-actions .btn{min-width:105px}
 .app-modal-actions .btn.primary{min-width:120px}
+.app-modal-actions .btn.destructive{
+  min-width:120px;background:var(--red);border-color:var(--red);color:#fff
+}
+.app-modal-actions .btn.destructive:hover{background:#bd0012;border-color:#bd0012}
 
 .card{background:rgba(255,255,255,.96);border:1px solid rgba(0,0,0,.055);border-radius:var(--radius);box-shadow:var(--shadow)}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:16px}
@@ -1103,7 +1107,8 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   function openConfirmModal({
     title="Confirmar ação",
     text="Deseja continuar?",
-    confirmLabel="Confirmar"
+    confirmLabel="Confirmar",
+    tone="primary"
   }={}){
     return new Promise(resolve=>{
       const modal=document.querySelector("#appConfirmModal");
@@ -1115,6 +1120,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       titleEl.textContent=title;
       textEl.textContent=text;
       ok.textContent=confirmLabel;
+      ok.className="btn "+(tone==="destructive"?"destructive":"primary");
       modal.classList.add("show");
       modal.setAttribute("aria-hidden","false");
 
@@ -1236,12 +1242,24 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     render();
   });
 
-  document.querySelector("#materialsList").addEventListener("click",e=>{
+  document.querySelector("#materialsList").addEventListener("click",async e=>{
     const b=e.target.closest("button[data-action]");if(!b)return;
     const id=b.dataset.id,a=b.dataset.action,idx=state.materials.findIndex(x=>x.id===id);if(idx<0)return;
     if(a==="up"&&idx>0){[state.materials[idx-1],state.materials[idx]]=[state.materials[idx],state.materials[idx-1]];render()}
     if(a==="down"&&idx<state.materials.length-1){[state.materials[idx+1],state.materials[idx]]=[state.materials[idx],state.materials[idx+1]];render()}
-    if(a==="delete"&&confirm("Excluir este material do acompanhamento?")){state.materials.splice(idx,1);render()}
+    if(a==="delete"){
+      const material=state.materials[idx];
+      const confirmed=await openConfirmModal({
+        title:"Excluir material?",
+        text:`“${material.name}” será removido do acompanhamento para todos os usuários. Essa ação ficará registrada no histórico.`,
+        confirmLabel:"Excluir",
+        tone:"destructive"
+      });
+      if(!confirmed)return;
+      state.materials.splice(idx,1);
+      render();
+      toast("Material excluído.");
+    }
   });
 
   document.querySelector("#physicalDeadline").addEventListener("change",e=>{
@@ -1283,16 +1301,40 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     state.team.push(name);input.value="";render();
   });
   document.querySelector("#newDesigner").addEventListener("keydown",e=>{if(e.key==="Enter")document.querySelector("#addDesignerBtn").click()});
-  document.querySelector("#teamEditor").addEventListener("click",e=>{
+  document.querySelector("#teamEditor").addEventListener("click",async e=>{
     const b=e.target.closest("[data-remove-designer]");if(!b)return;
     const name=b.dataset.removeDesigner,used=state.materials.some(m=>m.owner===name);
-    if(used&&!confirm(`${name} tem materiais atribuídos. Remover mesmo assim?`))return;
-    state.team=state.team.filter(n=>n!==name);state.materials.forEach(m=>{if(m.owner===name)m.owner=""});render();
-  });
-  document.querySelector("#resetBtn").addEventListener("click",()=>{
-    if(confirm("Restaurar a base inicial para todos os usuários do painel?")){
-      state=clone(baseState);const d=parseDate(state.physicalDeadline);calendarYear=d.getFullYear();calendarMonth=d.getMonth();render();toast("Base restaurada.");
+
+    if(used){
+      const confirmed=await openConfirmModal({
+        title:"Remover designer?",
+        text:`${name} possui materiais atribuídos. Ao remover, esses materiais ficarão sem responsável.`,
+        confirmLabel:"Remover",
+        tone:"destructive"
+      });
+      if(!confirmed)return;
     }
+
+    state.team=state.team.filter(n=>n!==name);
+    state.materials.forEach(m=>{if(m.owner===name)m.owner=""});
+    render();
+    toast("Designer removido.");
+  });
+  document.querySelector("#resetBtn").addEventListener("click",async()=>{
+    const confirmed=await openConfirmModal({
+      title:"Restaurar base inicial?",
+      text:"Isso vai substituir o estado atual do painel para todos os usuários pelos dados iniciais do projeto.",
+      confirmLabel:"Restaurar",
+      tone:"destructive"
+    });
+    if(!confirmed)return;
+
+    state=clone(baseState);
+    const d=parseDate(state.physicalDeadline);
+    calendarYear=d.getFullYear();
+    calendarMonth=d.getMonth();
+    render();
+    toast("Base restaurada.");
   });
 
   render();
