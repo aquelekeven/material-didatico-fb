@@ -698,6 +698,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         localStorage.removeItem(SESSION_KEY);
         localStorage.removeItem(USER_KEY);
         currentUser=null;
+        workflowBackendReady=false;
         remoteReady=false;
         setSyncStatus("Identificação necessária","warn");
         applyIdentityUi();
@@ -831,6 +832,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
       setSyncStatus(result.created?"Perfil criado":"Identificado","online");
+      render();
       await initSupabase();
       if(result.created)toast("Perfil criado. Nas próximas vezes, use o mesmo nome e PIN.");
     }catch(error){
@@ -1226,7 +1228,11 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
   function handleDatePickerChange(input,dateStr){
     if(input.id==="physicalDeadline"){
-      state.physicalDeadline=dateStr||"";
+      if(!dateStr){
+        input._flatpickr?.setDate(state.physicalDeadline,false);
+        return;
+      }
+      state.physicalDeadline=dateStr;
       const d=parseDate(state.physicalDeadline);
       if(d){calendarYear=d.getFullYear();calendarMonth=d.getMonth()}
       render();
@@ -1269,6 +1275,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       if(picker.altInput){
         picker.altInput.placeholder="dd/mm/aaaa";
         picker.altInput.classList.add("date-input");
+        picker.altInput.disabled=input.disabled;
       }
       activeDatePickers.push(picker);
     });
@@ -1297,7 +1304,6 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const urg=card.querySelector('[data-role="urgency"]');if(urg){urg.className=`urgency ${pc}`;urg.textContent=risk.label}
       const remEl=card.querySelector('[data-role="remaining"]');if(remEl)remEl.textContent=`${rem.toFixed(rem%1?1:0)} d.u.`;
       const riskEl=card.querySelector('[data-role="risk"]');if(riskEl){riskEl.className=`risk ${risk.cls}`;riskEl.textContent=risk.label}
-      const tl=card.querySelector('[data-role="timeline"]');if(tl)tl.innerHTML=timelineMarkup(m);
       card.classList.toggle("behind",risk.cls==="bad");
     });
   }
