@@ -154,9 +154,16 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .material-card.behind{border-left:4px solid var(--red)}
 .material-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .material-index{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:#f4f4f6;color:var(--muted);font-size:12px;font-weight:750;flex:0 0 auto}
+.material-name-wrap{min-width:0;flex:1;display:flex;align-items:center;gap:9px}
 .material-name{
   min-width:0;flex:1;border:0;outline:0;background:transparent;font-size:16px;font-weight:760;color:var(--text)
 }
+.subject-badge{
+  height:29px;min-width:29px;padding:0 7px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:850;letter-spacing:-.02em;flex:0 0 auto;border:1px solid transparent
+}
+.subject-badge.portugues{background:#eaf3ff;color:#0066c9;border-color:#d7e9ff}
+.subject-badge.matematica{background:#edf8f0;color:#248a3d;border-color:#d9efdf}
 .material-actions{display:flex;gap:5px;margin-left:auto}
 .icon-btn{
   border:1px solid var(--line);background:#fff;border-radius:9px;width:31px;height:31px;display:grid;place-items:center;color:var(--muted);
@@ -485,10 +492,10 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     printDays:5,
     daysPerBook:5,
     readyOutside:3,
-    team:["Gabi","Diego","Natalia","Renata"],
+    team:["Gabriela","Diego","Natalia","Renata"],
     materials:[
       {id:"m1",name:"Português 1º ano",owner:"",plannedStart:"",currentPage:96,totalPages:96},
-      {id:"m2",name:"Matemática 1º ano",owner:"Gabi",plannedStart:"",currentPage:58,totalPages:128},
+      {id:"m2",name:"Matemática 1º ano",owner:"Gabriela",plannedStart:"",currentPage:58,totalPages:128},
       {id:"m3",name:"Português 2º ano",owner:"Diego",plannedStart:"",currentPage:43,totalPages:96},
       {id:"m4",name:"Matemática 2º ano",owner:"Natalia",plannedStart:"",currentPage:0,totalPages:128},
       {id:"m5",name:"Português 3º ano",owner:"Renata",plannedStart:"",currentPage:0,totalPages:96},
@@ -514,12 +521,13 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     const safe=s&&typeof s==="object"?s:{};
     const merged={...clone(baseState),...safe};
     merged.team=Array.isArray(safe.team)?safe.team:clone(baseState.team);
+    merged.team=merged.team.map(n=>n==="Gabi"?"Gabriela":n);
     merged.materials=Array.isArray(safe.materials)?safe.materials.map((m,i)=>{
       const b=baseState.materials[i]||{};
       return {
         id:m.id||b.id||("m"+Date.now()+i),
         name:m.name||b.name||"Novo material",
-        owner:m.owner||"",
+        owner:(m.owner==="Gabi"?"Gabriela":(m.owner||"")),
         plannedStart:m.plannedStart||"",
         currentPage:Number.isFinite(Number(m.currentPage))?Number(m.currentPage):Number(b.currentPage||0),
         totalPages:Math.max(1,Number(m.totalPages||b.totalPages||96))
@@ -950,6 +958,23 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     return{label:"No prazo",cls:"good",hint:"Todas as projeções terminam dentro do deadline físico."};
   }
 
+  function subjectType(name){
+    const n=String(name||"").toLocaleLowerCase("pt-BR");
+    if(n.includes("português")||n.includes("portugues"))return"portugues";
+    if(n.includes("matemática")||n.includes("matematica"))return"matematica";
+    return"outro";
+  }
+  function subjectBadge(name){
+    const type=subjectType(name);
+    if(type==="portugues")return '<span class="subject-badge portugues" title="Português">Aa</span>';
+    if(type==="matematica")return '<span class="subject-badge matematica" title="Matemática">∑</span>';
+    return "";
+  }
+  function subjectSymbol(name){
+    const type=subjectType(name);
+    return type==="portugues"?"Aa":type==="matematica"?"∑":"";
+  }
+
   function renderMetrics(projections){
     const doneInside=state.materials.filter(m=>progressPct(m)>=99.999).length;
     const total=state.materials.length+Number(state.readyOutside||0),doneTotal=Number(state.readyOutside||0)+doneInside;
@@ -975,7 +1000,10 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       card.innerHTML=`
         <div class="material-head">
           <div class="material-index">${index+1}</div>
-          <input class="material-name" data-action="name" data-id="${m.id}" value="${escapeHtml(m.name)}">
+          <div class="material-name-wrap">
+            ${subjectBadge(m.name)}
+            <input class="material-name" data-action="name" data-id="${m.id}" value="${escapeHtml(m.name)}">
+          </div>
           <span class="risk ${risk.cls}" data-role="risk">${risk.label}</span>
           <div class="material-actions">
             <button class="icon-btn" data-action="up" data-id="${m.id}" title="Subir prioridade">↑</button>
@@ -1067,10 +1095,10 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       const key=isoDate(date);(events[key]??=[]).push(event);
     };
     state.materials.forEach(m=>{
-      const p=projections[m.id],risk=riskFor(m,p),label=shortName(m.name);
-      if(p?.planned)push(p.planned,{type:"start",text:`${label} · início`,title:`${m.name} — início`});
-      if(p?.graphics)push(p.graphics,{type:"graphics",text:`${label} · gráfica`,title:`${m.name} — gráfica`});
-      if(p?.printed)push(p.printed,{type:p.printed>physicalDeadline()?"late":"printed",text:`${label} · impresso`,title:`${m.name} — impresso`});
+      const p=projections[m.id],risk=riskFor(m,p),label=shortName(m.name),symbol=subjectSymbol(m.name);
+      if(p?.planned)push(p.planned,{type:"start",text:`${symbol} ${label} · início`,title:`${m.name} — início`});
+      if(p?.graphics)push(p.graphics,{type:"graphics",text:`${symbol} ${label} · gráfica`,title:`${m.name} — gráfica`});
+      if(p?.printed)push(p.printed,{type:p.printed>physicalDeadline()?"late":"printed",text:`${symbol} ${label} · impresso`,title:`${m.name} — impresso`});
     });
     return events;
   }
