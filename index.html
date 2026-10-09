@@ -434,7 +434,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   const SESSION_KEY = "fb_material_session_v1";
   const USER_KEY = "fb_material_user_v1";
   const DEVICE_KEY = "fb_material_device_v1";
-  const FUNCTION_URL = SUPABASE_URL + "/functions/v1/material-api";
+  const FUNCTION_URL = SUPABASE_URL + "/functions/v1/smart-endpoint";
   const CLIENT_INSTANCE_ID = crypto.randomUUID();
 
   const db = window.supabase?.createClient
@@ -758,7 +758,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       }else if(error.status===404){
         showIdentityError("A função do Supabase ainda não foi configurada.");
       }else if(error instanceof TypeError || error.message==="Failed to fetch"){
-        showIdentityError("O servidor de acesso ainda não respondeu. Confira se a Edge Function material-api foi publicada no Supabase.");
+        showIdentityError("O servidor de acesso ainda não respondeu. Confira se a Edge Function smart-endpoint foi publicada no Supabase.");
       }else{
         showIdentityError(error.message||"Não foi possível entrar.");
       }
