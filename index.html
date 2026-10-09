@@ -754,6 +754,8 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
         showIdentityError("PIN incorreto para esse nome.");
       }else if(error.status===404){
         showIdentityError("A função do Supabase ainda não foi configurada.");
+      }else if(error instanceof TypeError || error.message==="Failed to fetch"){
+        showIdentityError("O servidor de acesso ainda não respondeu. Confira se a Edge Function material-api foi publicada no Supabase.");
       }else{
         showIdentityError(error.message||"Não foi possível entrar.");
       }
