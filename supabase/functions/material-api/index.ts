@@ -26,7 +26,7 @@ const admin = createClient(SUPABASE_URL, BACKEND_SECRET_KEY, {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-app-session",
+  "Access-Control-Allow-Headers": "content-type, x-app-session, apikey",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
