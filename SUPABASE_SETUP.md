@@ -52,7 +52,7 @@ Nas próximas entradas, o mesmo nome exige o mesmo PIN.
 
 A identidade do usuário do app é independente da lista de designers. Portanto, Alessandra pode entrar e alterar o painel sem virar uma opção de designer.
 
-A sessão fica lembrada no navegador por até 90 dias. O botão **Trocar** no topo permite mudar de pessoa.
+A sessão fica lembrada no navegador por até 90 dias. O botão **Trocar** no topo revoga a sessão atual no servidor, limpa o usuário deste navegador e volta para a tela de identificação.
 
 ## 4. Auditoria escondida
 
@@ -102,6 +102,21 @@ O PIN é armazenado como hash PBKDF2 com salt, nunca em texto puro.
 
 Após 5 tentativas de PIN incorreto para um nome, esse perfil fica bloqueado por 10 minutos.
 
-### Esqueci o PIN
+### Voltar para a tela de login
 
-Como não existe e-mail/login, a recuperação é administrativa. A forma mais simples é excluir manualmente o perfil em `material_didatico_users`; o histórico antigo permanece porque o log usa `ON DELETE SET NULL` no ID e preserva o nome gravado.
+Use o botão **Trocar** no topo do painel. Ele revoga a sessão atual e volta para a tela **Quem está usando?**.
+
+Se for necessário fazer isso manualmente no navegador, limpe as chaves `fb_material_session_v1` e `fb_material_user_v1` do localStorage e recarregue a página.
+
+### Esqueci o PIN / quero zerar um perfil
+
+Como não existe e-mail/login, a recuperação é administrativa. Para apagar o perfil e permitir cadastrá-lo novamente com outro PIN:
+
+```sql
+delete from public.material_didatico_users
+where name_key = 'keven';
+```
+
+Use o nome normalizado em minúsculas e sem acento no `name_key`.
+
+As sessões daquele usuário são removidas automaticamente por `ON DELETE CASCADE`. O histórico antigo continua preservado porque o log usa `ON DELETE SET NULL` no ID e mantém o nome gravado.
