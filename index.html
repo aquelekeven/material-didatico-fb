@@ -213,6 +213,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .flow-grid{display:grid;grid-template-columns:repeat(7,minmax(112px,1fr));gap:7px}
 .flow-step{border:1px solid var(--line);background:#fafafa;border-radius:12px;padding:9px;min-width:0;transition:.15s ease}
 .flow-step.done{background:var(--green-soft);border-color:#d8eedf}
+.flow-step:has(input:disabled){opacity:.58;background:#f5f5f6}
 .flow-check{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:24px}
 .flow-check input{position:absolute;opacity:0;pointer-events:none}
 .check-ui{width:19px;height:19px;border-radius:6px;border:1.5px solid #c7c7cc;background:#fff;display:grid;place-items:center;color:transparent;font-size:12px;font-weight:900;flex:0 0 auto;transition:.14s ease}
@@ -545,6 +546,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   let currentUser = null;
   let currentRevision = 0;
   let supabaseInitialized = false;
+  let workflowBackendReady = false;
   const initialDeadline = parseDate(state.physicalDeadline) || new Date();
   let calendarYear = initialDeadline.getFullYear();
   let calendarMonth = initialDeadline.getMonth();
@@ -798,8 +800,10 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       setSyncStatus("Identificando…","syncing");
       const result=await callMaterialApi({action:"check_session"});
       currentUser=result.user;
+      workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
+      render();
       await initSupabase();
     }catch(error){
       localStorage.removeItem(SESSION_KEY);
@@ -823,6 +827,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
       localStorage.setItem(SESSION_KEY,result.session_token);
       currentUser=result.user;
+      workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
       setSyncStatus(result.created?"Perfil criado":"Identificado","online");
@@ -925,6 +930,15 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   function riskFor(m,p){
     if(m.flow?.completed)return{label:"Material concluído",cls:"good"};
 
+    const pct=progressPct(m);
+    if(pct>=99.999&&p?.printed){
+      if(p.printed>physicalDeadline())return{label:"Não fecha prazo",cls:"bad"};
+      const completedSlack=businessDaysBetween(p.printed,physicalDeadline());
+      if(completedSlack<=2)return{label:"Prazo crítico",cls:"bad"};
+      if(completedSlack<=5)return{label:"Prazo apertado",cls:"warn"};
+      return{label:"No prazo",cls:"good"};
+    }
+
     const daysToGraphics=businessDaysBetween(today(),graphicsDeadline());
     if(!m.plannedStart){
       if(daysToGraphics<=3)return{label:"Prazo crítico",cls:"bad"};
@@ -949,11 +963,13 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
   function timelineMarkup(m){
     const flow={...emptyFlow(),...(m.flow||{})};
+    const disabled=workflowBackendReady?"":"disabled";
+    const hint=workflowBackendReady?"Marque a etapa e registre a data":"Atualize a Edge Function para liberar este fluxo";
     return `
       <div class="flow-wrap">
         <div class="flow-head">
           <div class="flow-caption">Fluxo de entrega</div>
-          <div class="flow-hint">Marque a etapa e registre a data</div>
+          <div class="flow-hint">${hint}</div>
         </div>
         <div class="flow-grid">
           ${FLOW_STAGES.map(([key,label,optional])=>{
@@ -961,11 +977,11 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
             return `
               <div class="flow-step ${date?"done":""}">
                 <label class="flow-check">
-                  <input type="checkbox" data-flow-check="${key}" data-id="${m.id}" ${date?"checked":""}>
+                  <input type="checkbox" data-flow-check="${key}" data-id="${m.id}" ${date?"checked":""} ${disabled}>
                   <span class="check-ui">✓</span>
                   <span class="flow-name">${label}${optional?'<br><span class="flow-optional">(caso tenha)</span>':""}</span>
                 </label>
-                <input type="text" class="flow-date date-input" data-date-picker data-flow-stage="${key}" data-id="${m.id}" value="${escapeHtml(date)}" placeholder="dd/mm/aaaa" aria-label="Data: ${escapeHtml(label)}">
+                <input type="text" class="flow-date date-input" data-date-picker data-flow-stage="${key}" data-id="${m.id}" value="${escapeHtml(date)}" placeholder="dd/mm/aaaa" aria-label="Data: ${escapeHtml(label)}" ${disabled}>
               </div>`;
           }).join("")}
         </div>
