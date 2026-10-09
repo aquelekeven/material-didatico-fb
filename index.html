@@ -98,6 +98,25 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 }
 .identity-error.show{display:block}
 
+.app-modal{
+  position:fixed;inset:0;z-index:11000;display:none;align-items:center;justify-content:center;padding:22px;
+  background:rgba(15,18,22,.42);backdrop-filter:blur(8px)
+}
+.app-modal.show{display:flex}
+.app-modal-card{
+  width:min(420px,100%);background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:23px;
+  box-shadow:0 28px 80px rgba(0,0,0,.22);padding:25px
+}
+.app-modal-icon{
+  width:43px;height:43px;border-radius:14px;display:grid;place-items:center;
+  background:var(--blue-soft);color:var(--blue);font-size:22px;margin-bottom:16px
+}
+.app-modal-card h3{margin:0 0 8px;font-size:22px;letter-spacing:-.025em}
+.app-modal-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.app-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:22px}
+.app-modal-actions .btn{min-width:105px}
+.app-modal-actions .btn.primary{min-width:120px}
+
 .card{background:rgba(255,255,255,.96);border:1px solid rgba(0,0,0,.055);border-radius:var(--radius);box-shadow:var(--shadow)}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:16px}
 .metric{padding:18px;min-height:132px;display:flex;flex-direction:column;justify-content:space-between}
@@ -419,6 +438,18 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       </div>
     </aside>
   </section>
+</div>
+
+<div class="app-modal" id="appConfirmModal" aria-hidden="true">
+  <div class="app-modal-card" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
+    <div class="app-modal-icon">↻</div>
+    <h3 id="appConfirmTitle">Trocar usuário?</h3>
+    <p id="appConfirmText">Você vai sair deste usuário e voltar para a tela de identificação.</p>
+    <div class="app-modal-actions">
+      <button class="btn" id="appConfirmCancel" type="button">Cancelar</button>
+      <button class="btn primary" id="appConfirmOk" type="button">Trocar usuário</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -1069,6 +1100,47 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   function escapeHtml(s){
     return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   }
+  function openConfirmModal({
+    title="Confirmar ação",
+    text="Deseja continuar?",
+    confirmLabel="Confirmar"
+  }={}){
+    return new Promise(resolve=>{
+      const modal=document.querySelector("#appConfirmModal");
+      const titleEl=document.querySelector("#appConfirmTitle");
+      const textEl=document.querySelector("#appConfirmText");
+      const ok=document.querySelector("#appConfirmOk");
+      const cancel=document.querySelector("#appConfirmCancel");
+
+      titleEl.textContent=title;
+      textEl.textContent=text;
+      ok.textContent=confirmLabel;
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden","false");
+
+      const finish=value=>{
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden","true");
+        ok.onclick=null;
+        cancel.onclick=null;
+        modal.onclick=null;
+        document.removeEventListener("keydown",onKey);
+        resolve(value);
+      };
+
+      const onKey=e=>{
+        if(e.key==="Escape")finish(false);
+        if(e.key==="Enter")finish(true);
+      };
+
+      ok.onclick=()=>finish(true);
+      cancel.onclick=()=>finish(false);
+      modal.onclick=e=>{if(e.target===modal)finish(false)};
+      document.addEventListener("keydown",onKey);
+      cancel.focus();
+    });
+  }
+
   function toast(msg){
     const el=document.querySelector("#toast");el.textContent=msg;el.classList.add("show");
     clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),1700);
@@ -1123,7 +1195,13 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   });
 
   document.querySelector("#switchUserBtn").addEventListener("click",async()=>{
-    if(!confirm("Trocar a pessoa que está usando o painel?"))return;
+    const confirmed=await openConfirmModal({
+      title:"Trocar usuário?",
+      text:"Você vai sair do usuário atual e voltar para a tela “Quem está usando?”.",
+      confirmLabel:"Trocar usuário"
+    });
+    if(!confirmed)return;
+
     try{
       await callMaterialApi({action:"logout"});
     }catch(error){
