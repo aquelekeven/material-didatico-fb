@@ -1146,8 +1146,19 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   function addCalendarDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d}
   function holidaySet(year){
     const fixed=[`${year}-01-01`,`${year}-04-21`,`${year}-05-01`,`${year}-09-07`,`${year}-10-12`,`${year}-11-02`,`${year}-11-15`,`${year}-11-20`,`${year}-12-25`];
+
+    // Folgas internas da Fundação Bradesco consideradas como dias não úteis no projeto.
+    const companyDaysOff=[
+      "2026-10-15"
+    ];
+
     const easter=easterSunday(year);
-    return new Set([...fixed,isoDate(addCalendarDays(easter,-2)),isoDate(addCalendarDays(easter,60))]);
+    return new Set([
+      ...fixed,
+      ...companyDaysOff.filter(date=>date.startsWith(String(year)+"-")),
+      isoDate(addCalendarDays(easter,-2)),
+      isoDate(addCalendarDays(easter,60))
+    ]);
   }
   function isBusinessDay(date){const d=date.getDay();return d!==0&&d!==6&&!holidaySet(date.getFullYear()).has(isoDate(date))}
   function normalizeBusinessDay(date){const d=new Date(date);while(!isBusinessDay(d))d.setDate(d.getDate()+1);return d}
