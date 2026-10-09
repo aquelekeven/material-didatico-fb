@@ -22,6 +22,6 @@ Quem usa o sistema não precisa ser designer. A identidade serve apenas para reg
 ## Configuração
 
 1. Execute `supabase/setup.sql` no SQL Editor.
-2. Publique `supabase/functions/material-api/index.ts` como Edge Function com `verify_jwt = false`.
+2. Publique `supabase/functions/smart-endpoint/index.ts` como Edge Function com `verify_jwt = false`.
 
 Veja `SUPABASE_SETUP.md` para o passo a passo.
