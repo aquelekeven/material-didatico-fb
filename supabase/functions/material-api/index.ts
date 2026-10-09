@@ -355,6 +355,16 @@ Deno.serve(async (req) => {
     return json({ user: session.user });
   }
 
+  if (action === "logout") {
+    await admin
+      .from("material_didatico_sessions")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", session.session_id);
+
+    await writeAudit(req, session.user, deviceId || session.device_id, "logout");
+    return json({ ok: true });
+  }
+
   if (action === "save_state") {
     const nextState = body?.state;
     const requestedRevision = Number(body?.revision ?? -1);
