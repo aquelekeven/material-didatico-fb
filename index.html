@@ -239,7 +239,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .flatpickr-day.selected,.flatpickr-day.startRange,.flatpickr-day.endRange{background:var(--blue)!important;border-color:var(--blue)!important;color:#fff!important}
 .flatpickr-day:hover{background:#eef5ff!important;border-color:#eef5ff!important}
 
-.lower-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(330px,.65fr);gap:16px;margin-top:16px;align-items:start}
+.lower-grid{display:block;margin-top:16px}
+.side-stack{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 
 /* Calendar */
 .calendar-toolbar{display:flex;align-items:center;gap:8px}
@@ -264,7 +265,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .cal-event.late{background:var(--red-soft);color:var(--red);border-color:#ffd7db}
 
 /* Sidebar */
-.side-stack{display:grid;gap:16px}
+
 .workload-list{display:grid;gap:12px}
 .workload-item{border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff}
 .workload-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px}
@@ -281,8 +282,102 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .logic-box strong{color:var(--text)}
 .footer-note{margin-top:14px;color:var(--muted);font-size:12px;line-height:1.5}
 
+
+.summary-fab{
+  position:fixed;right:24px;bottom:24px;z-index:9000;border:1px solid rgba(0,0,0,.08);
+  background:#1d1d1f;color:#fff;border-radius:999px;padding:12px 16px;display:flex;align-items:center;gap:9px;
+  font-weight:760;box-shadow:0 14px 34px rgba(0,0,0,.18);transition:.16s ease
+}
+.summary-fab:hover{transform:translateY(-2px);box-shadow:0 18px 42px rgba(0,0,0,.23)}
+.summary-fab-dot{width:9px;height:9px;border-radius:50%;background:#a1a1a6;box-shadow:0 0 0 4px rgba(255,255,255,.08)}
+.summary-fab.good .summary-fab-dot{background:var(--green)}
+.summary-fab.warn .summary-fab-dot{background:var(--yellow)}
+.summary-fab.bad .summary-fab-dot{background:var(--red)}
+
+.summary-overlay{
+  position:fixed;inset:0;z-index:10500;display:none;align-items:center;justify-content:center;padding:22px;
+  background:rgba(12,14,18,.48);backdrop-filter:blur(10px)
+}
+.summary-overlay.show{display:flex}
+.summary-sheet{
+  width:min(1180px,100%);max-height:min(900px,92vh);overflow:auto;background:#f7f7f9;border:1px solid rgba(255,255,255,.35);
+  border-radius:28px;box-shadow:0 32px 100px rgba(0,0,0,.3)
+}
+.summary-header{
+  position:sticky;top:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:23px 25px 18px;background:rgba(247,247,249,.94);backdrop-filter:blur(18px);border-bottom:1px solid #e8e8ec
+}
+.summary-header h2{margin:2px 0 5px;font-size:28px;letter-spacing:-.035em}
+.summary-header p{margin:0;color:var(--muted);font-size:13px}
+.summary-close{
+  width:38px;height:38px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--text);
+  font-size:20px;display:grid;place-items:center;flex:0 0 auto
+}
+.summary-content{padding:20px 25px 26px}
+.summary-hero{
+  border-radius:20px;padding:18px 20px;display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:14px;
+  border:1px solid var(--line);background:#fff
+}
+.summary-hero.good{background:var(--green-soft);border-color:#d8eedf}
+.summary-hero.warn{background:var(--yellow-soft);border-color:#f1e2a6}
+.summary-hero.bad{background:var(--red-soft);border-color:#ffd7db}
+.summary-status-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:800}
+.summary-status{font-size:30px;font-weight:820;letter-spacing:-.035em;margin-top:4px}
+.summary-hero.good .summary-status{color:var(--green)}
+.summary-hero.warn .summary-status{color:#8b6200}
+.summary-hero.bad .summary-status{color:var(--red)}
+.summary-status-text{color:#55555b;font-size:13px;line-height:1.5;margin-top:4px;max-width:700px}
+.summary-deadline{text-align:right;flex:0 0 auto}
+.summary-deadline strong{font-size:22px;display:block}
+.summary-deadline span{font-size:11px;color:var(--muted)}
+
+.summary-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.summary-kpi{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+.summary-kpi-label{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.summary-kpi-value{font-size:24px;font-weight:820;letter-spacing:-.03em;margin:6px 0 3px}
+.summary-kpi-note{font-size:11px;color:var(--muted);line-height:1.35}
+
+.summary-section{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px}
+.summary-section-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:12px}
+.summary-section-head h3{margin:0;font-size:16px}
+.summary-section-head span{font-size:11px;color:var(--muted)}
+.stage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stage-card{border:1px solid var(--line);border-radius:13px;padding:11px;background:#fafafa}
+.stage-card strong{font-size:20px;display:block;margin-bottom:3px}
+.stage-card span{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+
+.summary-two-col{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-top:12px}
+.attention-list,.team-summary-list{display:grid;gap:7px}
+.attention-item,.team-summary-item{
+  border:1px solid var(--line);border-radius:13px;padding:10px 11px;background:#fafafa
+}
+.attention-head,.team-summary-head{display:flex;justify-content:space-between;gap:9px;align-items:center}
+.attention-name,.team-summary-name{font-size:12px;font-weight:760}
+.attention-meta,.team-summary-meta{font-size:10px;color:var(--muted);margin-top:3px}
+.attention-pill{font-size:9px;font-weight:800;border-radius:999px;padding:4px 7px;white-space:nowrap}
+.attention-pill.bad{background:var(--red-soft);color:var(--red)}
+.attention-pill.warn{background:var(--yellow-soft);color:#8b6200}
+.attention-pill.good{background:var(--green-soft);color:var(--green)}
+.team-load-bar{height:6px;background:#ececf0;border-radius:99px;overflow:hidden;margin-top:7px}
+.team-load-bar>div{height:100%;background:var(--blue);border-radius:99px}
+
+.summary-table-wrap{overflow:auto}
+.summary-table{width:100%;border-collapse:collapse;min-width:760px}
+.summary-table th{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:8px 9px;border-bottom:1px solid var(--line)}
+.summary-table td{font-size:11px;padding:10px 9px;border-bottom:1px solid #f0f0f2;vertical-align:middle}
+.summary-table tr:last-child td{border-bottom:0}
+.summary-material{display:flex;align-items:center;gap:7px;font-weight:740}
+.summary-stage-pending{color:#8b6200;font-weight:760}
+.summary-risk{font-size:9px;font-weight:800;border-radius:999px;padding:4px 7px;display:inline-flex}
+.summary-risk.bad{background:var(--red-soft);color:var(--red)}
+.summary-risk.warn{background:var(--yellow-soft);color:#8b6200}
+.summary-risk.good{background:var(--green-soft);color:var(--green)}
+.summary-risk.muted{background:#f0f0f2;color:var(--muted)}
+
+.summary-empty{padding:18px;text-align:center;color:var(--muted);font-size:12px}
+
 .toast{
-  position:fixed;right:24px;bottom:24px;background:rgba(29,29,31,.94);color:#fff;padding:12px 15px;border-radius:13px;
+  position:fixed;right:24px;bottom:82px;background:rgba(29,29,31,.94);color:#fff;padding:12px 15px;border-radius:13px;
   font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.18);transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s ease;z-index:999
 }
 .toast.show{opacity:1;transform:translateY(0)}
@@ -294,11 +389,21 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   .side-stack{grid-template-columns:1fr 1fr}
 }
 @media(max-width:980px){
+  .summary-kpis{grid-template-columns:1fr 1fr}
+  .summary-two-col{grid-template-columns:1fr}
+  .stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .material-grid{grid-template-columns:1fr 1fr 1fr}
   .progress-block{grid-column:span 2}
   .flow-grid{grid-template-columns:repeat(4,minmax(120px,1fr))}
 }
 @media(max-width:760px){
+  .summary-overlay{padding:0}
+  .summary-sheet{width:100%;height:100%;max-height:none;border-radius:0}
+  .summary-header{padding:18px}
+  .summary-content{padding:14px 16px 24px}
+  .summary-hero{align-items:flex-start;flex-direction:column}
+  .summary-deadline{text-align:left}
+  .summary-fab{right:16px;bottom:16px}
   .app{padding:17px}
   .topbar{flex-direction:column}
   .top-actions{justify-content:flex-start}
@@ -311,6 +416,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   .cal-day{min-height:95px;padding:5px}.cal-event{font-size:9px;padding:3px 4px}
 }
 @media(max-width:520px){
+  .summary-kpis,.stage-grid{grid-template-columns:1fr 1fr}
   .metrics,.settings,.material-grid{grid-template-columns:1fr}
   .progress-block{grid-column:auto}
   .calendar-grid{font-size:9px}.cal-day{min-height:84px}
@@ -412,33 +518,11 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     <div id="materialsList" class="materials-list"></div>
 
     <div class="footer-note">
-      A projeção respeita <strong>início previsto → fila do designer → páginas restantes → gráfica → impressão</strong>. A ordem dos cards também é a ordem considerada para cada designer.
+      Os cards detalham cada material. Para gestão, use o <strong>Resumo</strong>: ele consolida carga restante, capacidade do time, etapas, gargalos e materiais que precisam de atenção.
     </div>
   </section>
 
   <section class="lower-grid">
-    <div class="card panel">
-      <div class="panel-title">
-        <div>
-          <h2>Calendário de produção</h2>
-          <p>Início, envio para gráfica e entrega impressa aparecem automaticamente nos respectivos dias.</p>
-        </div>
-        <div class="calendar-toolbar">
-          <button class="btn small" id="prevMonth">←</button>
-          <div class="calendar-month" id="calendarMonth">—</div>
-          <button class="btn small" id="nextMonth">→</button>
-          <button class="btn small" id="deadlineMonth">Deadline</button>
-        </div>
-      </div>
-      <div class="calendar-legend">
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--blue)"></span>Início</span>
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--purple)"></span>Gráfica</span>
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--green)"></span>Impresso</span>
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--red)"></span>Impresso após deadline</span>
-      </div>
-      <div id="calendarGrid" class="calendar-grid"></div>
-    </div>
-
     <aside class="side-stack">
       <div class="card panel">
         <div class="panel-title">
@@ -463,14 +547,82 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
           <div><h2>Lógica do cronograma</h2></div>
         </div>
         <div class="logic-box">
-          <strong>Vermelho:</strong> prazo crítico — projeção fora do deadline ou com até 2 dias úteis de folga.<br>
-          <strong>Amarelo:</strong> prazo apertado — de 3 a 5 dias úteis de folga, ou informação essencial ainda pendente.<br>
-          <strong>Verde:</strong> projeção saudável, com mais de 5 dias úteis de folga.<br><br>
-          A porcentagem continua mostrando quanto do material foi diagramado, mas <strong>a cor da barra agora representa o risco de prazo</strong>. Se dois livros forem do mesmo designer, o segundo só começa depois que o anterior libera a fila.
+          <strong>5 dias úteis / livro</strong> representam esforço de produção, não uma janela isolada para cada material.<br><br>
+          O prazo geral compara a <strong>carga restante em designer-dias</strong> com a capacidade dos designers trabalhando em paralelo até o limite da gráfica. Quando alguém termina sua carga atual, essa capacidade pode ser usada no próximo material.<br><br>
+          <strong>Vermelho:</strong> a carga ultrapassa a capacidade disponível. <strong>Amarelo:</strong> fecha com pouca folga ou ainda há informações essenciais pendentes. <strong>Verde:</strong> há capacidade confortável.
         </div>
       </div>
     </aside>
   </section>
+</div>
+
+<button class="summary-fab" id="summaryFab" type="button" aria-label="Abrir resumo executivo">
+  <span class="summary-fab-dot"></span>
+  <span>Resumo</span>
+</button>
+
+<div class="summary-overlay" id="summaryOverlay" aria-hidden="true">
+  <div class="summary-sheet" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+    <div class="summary-header">
+      <div>
+        <div class="eyebrow">Visão gerencial</div>
+        <h2 id="summaryTitle">Resumo do projeto</h2>
+        <p id="summaryUpdatedAt">Situação consolidada dos materiais e da capacidade do time.</p>
+      </div>
+      <button class="summary-close" id="summaryClose" type="button" aria-label="Fechar resumo">×</button>
+    </div>
+    <div class="summary-content">
+      <div id="summaryHero"></div>
+      <div class="summary-kpis" id="summaryKpis"></div>
+
+      <div class="summary-section">
+        <div class="summary-section-head">
+          <h3>Onde os materiais estão</h3>
+          <span>Etapa mais avançada registrada em cada material</span>
+        </div>
+        <div class="stage-grid" id="summaryStages"></div>
+      </div>
+
+      <div class="summary-two-col">
+        <div class="summary-section" style="margin-top:0">
+          <div class="summary-section-head">
+            <h3>Atenção agora</h3>
+            <span>O que merece olhar primeiro</span>
+          </div>
+          <div class="attention-list" id="summaryAttention"></div>
+        </div>
+
+        <div class="summary-section" style="margin-top:0">
+          <div class="summary-section-head">
+            <h3>Time</h3>
+            <span>Carga atualmente atribuída</span>
+          </div>
+          <div class="team-summary-list" id="summaryTeam"></div>
+        </div>
+      </div>
+
+      <div class="summary-section">
+        <div class="summary-section-head">
+          <h3>Materiais</h3>
+          <span>Leitura rápida do projeto inteiro</span>
+        </div>
+        <div class="summary-table-wrap">
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Responsável</th>
+                <th>Etapa atual</th>
+                <th>Diagramação</th>
+                <th>Prazo</th>
+              </tr>
+            </thead>
+            <tbody id="summaryMaterials"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="app-modal" id="appConfirmModal" aria-hidden="true">
@@ -1025,6 +1177,18 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     while(d<e){d.setDate(d.getDate()+1);if(d<=e&&isBusinessDay(d))n++}
     return n;
   }
+  function businessDaysInclusive(start,end){
+    if(!start||!end)return 0;
+    const s=new Date(start.getFullYear(),start.getMonth(),start.getDate(),12);
+    const e=new Date(end.getFullYear(),end.getMonth(),end.getDate(),12);
+    if(e<s)return 0;
+    let n=0,d=new Date(s);
+    while(d<=e){
+      if(isBusinessDay(d))n++;
+      d.setDate(d.getDate()+1);
+    }
+    return n;
+  }
   function maxDate(...dates){const v=dates.filter(Boolean);return v.length?new Date(Math.max(...v.map(d=>d.getTime()))):null}
   function fmtDate(d,short=false){
     if(!(d instanceof Date)||isNaN(d))return "—";
@@ -1133,16 +1297,46 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       </div>`;
   }
 
-  function scheduleStatus(projections){
-    const active=state.materials.filter(m=>progressPct(m)<99.999);
-    const missingStarts=active.filter(m=>!m.plannedStart).length,missingOwners=active.filter(m=>!m.owner).length;
-    const late=active.filter(m=>projections[m.id]?.printed&&projections[m.id].printed>physicalDeadline()).length;
-    if(late)return{label:"Crítico",cls:"bad",hint:`${late} material(is) projetado(s) após ${fmtDate(physicalDeadline())}.`};
-    if(missingStarts||missingOwners){
-      const bits=[]; if(missingStarts)bits.push(`${missingStarts} sem início`); if(missingOwners)bits.push(`${missingOwners} sem responsável`);
-      return{label:"Incompleto",cls:"warn",hint:bits.join(" · ")};
+  function projectCapacitySummary(){
+    const teamSize=state.team.length;
+    const deadline=graphicsDeadline();
+    const availableDays=businessDaysInclusive(today(),deadline);
+    const active=state.materials.filter(m=>!flowStageDate(m.flow?.completed));
+    const load=active.reduce((sum,m)=>sum+remainingDays(m),0);
+    const capacity=availableDays*teamSize;
+    const balance=capacity-load;
+    const equivalentDays=teamSize?load/teamSize:Infinity;
+    const projectedFinish=teamSize&&load>0
+      ? addBusinessDays(today(),Math.max(0,Math.ceil(equivalentDays)-1))
+      : today();
+    const missingStarts=active.filter(m=>remainingDays(m)>.001&&!m.plannedStart).length;
+    const missingOwners=active.filter(m=>remainingDays(m)>.001&&!m.owner).length;
+    const afterDeadlineStarts=active.filter(m=>{
+      const d=parseDate(m.plannedStart);
+      return d&&deadline&&d>deadline&&remainingDays(m)>.001;
+    }).length;
+
+    let cls="good",label="Saudável";
+    if(!teamSize||balance<0||afterDeadlineStarts) {
+      cls="bad";label="Crítico";
+    }else if(balance<=teamSize||missingStarts||missingOwners){
+      cls="warn";label="Apertado";
     }
-    return{label:"No prazo",cls:"good",hint:"Todas as projeções terminam dentro do deadline físico."};
+
+    return {
+      teamSize,availableDays,load,capacity,balance,equivalentDays,projectedFinish,
+      missingStarts,missingOwners,afterDeadlineStarts,cls,label
+    };
+  }
+
+  function scheduleStatus(){
+    const c=projectCapacitySummary();
+    const balanceText=`${c.balance>=0?"+":""}${c.balance.toFixed(1)} designer-dia(s)`;
+    return {
+      label:c.label,
+      cls:c.cls,
+      hint:`${c.load.toFixed(1)} d.d. de carga / ${c.capacity.toFixed(1)} d.d. disponíveis · saldo ${balanceText}`
+    };
   }
 
   function subjectType(name){
@@ -1160,6 +1354,150 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   function subjectSymbol(name){
     const type=subjectType(name);
     return type==="portugues"?"Aa":type==="matematica"?"∑":"";
+  }
+
+  function summaryStageFor(m){
+    const flow={...emptyFlow(),...(m.flow||{})};
+    for(let i=FLOW_STAGES.length-1;i>=0;i--){
+      const [key,label]=FLOW_STAGES[i];
+      if(flowStageChecked(flow[key])){
+        return {key,label,pending:!flowStageDate(flow[key]),inferred:false};
+      }
+    }
+    if(progressPct(m)>0)return{key:"inProgress",label:"Em andamento",pending:false,inferred:true};
+    return{key:"notStarted",label:"Não iniciado",pending:false,inferred:false};
+  }
+
+  function renderExecutiveSummary(projections=projectionMap()){
+    const capacity=projectCapacitySummary();
+    const fab=document.querySelector("#summaryFab");
+    if(fab)fab.className=`summary-fab ${capacity.cls}`;
+
+    const completedTracked=state.materials.filter(m=>flowStageDate(m.flow?.completed)).length;
+    const completedTotal=Number(state.readyOutside||0)+completedTracked;
+    const total=state.materials.length+Number(state.readyOutside||0);
+    const balanceText=`${capacity.balance>=0?"+":""}${capacity.balance.toFixed(1)}`;
+
+    document.querySelector("#summaryUpdatedAt").textContent=
+      `Atualizado às ${new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · dados consolidados do painel`;
+
+    const heroText=capacity.cls==="bad"
+      ? `A carga restante ultrapassa a capacidade teórica do time até a gráfica em ${Math.abs(capacity.balance).toFixed(1)} designer-dia(s). É preciso ganhar produtividade, antecipar entregas ou redistribuir carga.`
+      : capacity.cls==="warn"
+        ? `O projeto fecha no limite: há pouca folga de capacidade e/ou materiais ainda sem início ou responsável definidos.`
+        : `A capacidade do time cobre a carga restante com ${capacity.balance.toFixed(1)} designer-dia(s) de folga teórica.`;
+
+    document.querySelector("#summaryHero").innerHTML=`
+      <div class="summary-hero ${capacity.cls}">
+        <div>
+          <div class="summary-status-label">Situação geral</div>
+          <div class="summary-status">${capacity.label}</div>
+          <div class="summary-status-text">${heroText}</div>
+        </div>
+        <div class="summary-deadline">
+          <strong>${fmtDate(graphicsDeadline(),true)}</strong>
+          <span>limite para gráfica · físico ${fmtDate(physicalDeadline(),true)}</span>
+        </div>
+      </div>`;
+
+    document.querySelector("#summaryKpis").innerHTML=`
+      <div class="summary-kpi">
+        <div class="summary-kpi-label">Concluídos</div>
+        <div class="summary-kpi-value">${completedTotal}/${total}</div>
+        <div class="summary-kpi-note">${completedTracked} acompanhados + ${state.readyOutside} prontos fora da fila</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-label">Carga restante</div>
+        <div class="summary-kpi-value">${capacity.load.toFixed(1)} d.d.</div>
+        <div class="summary-kpi-note">designer-dias de diagramação ainda necessários</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-label">Capacidade até gráfica</div>
+        <div class="summary-kpi-value">${capacity.capacity.toFixed(1)} d.d.</div>
+        <div class="summary-kpi-note">${capacity.teamSize} pessoas × ${capacity.availableDays} dias úteis disponíveis</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-label">Saldo de capacidade</div>
+        <div class="summary-kpi-value" style="color:${capacity.cls==="bad"?"var(--red)":capacity.cls==="warn"?"var(--yellow)":"var(--green)"}">${balanceText} d.d.</div>
+        <div class="summary-kpi-note">equivale a ~${Number.isFinite(capacity.equivalentDays)?capacity.equivalentDays.toFixed(1):"—"} dias úteis do time</div>
+      </div>`;
+
+    const stageDefs=[
+      ["notStarted","Não iniciado"],
+      ["start","Início"],
+      ["inProgress","Em andamento"],
+      ["review","Revisão"],
+      ["amendments","Emendas"],
+      ["fileClosing","Fechamento"],
+      ["sentToPrint","Gráfica"],
+      ["completed","Concluído"]
+    ];
+    const stageCounts=Object.fromEntries(stageDefs.map(([key])=>[key,0]));
+    state.materials.forEach(m=>{stageCounts[summaryStageFor(m).key]=(stageCounts[summaryStageFor(m).key]||0)+1});
+    stageCounts.completed+=Number(state.readyOutside||0);
+    document.querySelector("#summaryStages").innerHTML=stageDefs.map(([key,label])=>`
+      <div class="stage-card"><strong>${stageCounts[key]||0}</strong><span>${label}</span></div>
+    `).join("");
+
+    const attention=state.materials.map(m=>{
+      const risk=riskFor(m,projections[m.id]);
+      const pendingDates=Object.values(m.flow||{}).filter(v=>v===FLOW_PENDING).length;
+      const issues=[];
+      if(risk.cls==="bad")issues.push(risk.label);
+      else if(risk.cls==="warn")issues.push(risk.label);
+      if(!m.owner&&remainingDays(m)>.001)issues.push("sem responsável");
+      if(!m.plannedStart&&remainingDays(m)>.001)issues.push("sem início");
+      if(pendingDates)issues.push(`${pendingDates} etapa(s) sem data`);
+      return {m,risk,pendingDates,issues,severity:risk.cls==="bad"?0:1};
+    }).filter(x=>x.issues.length).sort((a,b)=>a.severity-b.severity||b.pendingDates-a.pendingDates);
+
+    document.querySelector("#summaryAttention").innerHTML=attention.length
+      ? attention.slice(0,8).map(({m,risk,issues})=>`
+          <div class="attention-item">
+            <div class="attention-head">
+              <div class="attention-name">${escapeHtml(m.name)}</div>
+              <span class="attention-pill ${risk.cls==="bad"?"bad":"warn"}">${risk.cls==="bad"?"Crítico":"Atenção"}</span>
+            </div>
+            <div class="attention-meta">${escapeHtml(issues.join(" · "))}</div>
+          </div>`).join("")
+      : '<div class="summary-empty">Nenhuma pendência relevante agora.</div>';
+
+    const {result:teamData,unassigned}=workloadData(projections);
+    const maxLoad=Math.max(1,...state.team.map(n=>teamData[n]?.days||0));
+    document.querySelector("#summaryTeam").innerHTML=
+      state.team.map(name=>{
+        const d=teamData[name]||{days:0,count:0};
+        const release=d.days>0?addBusinessDays(today(),Math.max(0,Math.ceil(d.days)-1)):today();
+        const loadPct=Math.min(100,(d.days/maxLoad)*100);
+        return `
+          <div class="team-summary-item">
+            <div class="team-summary-head">
+              <div class="team-summary-name">${escapeHtml(name)}</div>
+              <strong>${d.days.toFixed(1)} d.u.</strong>
+            </div>
+            <div class="team-summary-meta">${d.count} material(is) · ${d.days>0?`libera ~${fmtDate(release,true)}`:"livre agora"}</div>
+            <div class="team-load-bar"><div style="width:${loadPct}%"></div></div>
+          </div>`;
+      }).join("")+
+      (unassigned>0?`
+        <div class="team-summary-item" style="background:var(--yellow-soft);border-color:#f1e2a6">
+          <div class="team-summary-head"><div class="team-summary-name">Sem responsável</div><strong>${unassigned.toFixed(1)} d.u.</strong></div>
+          <div class="team-summary-meta">carga ainda disponível para redistribuição entre o time</div>
+        </div>`:"");
+
+    document.querySelector("#summaryMaterials").innerHTML=state.materials.map(m=>{
+      const pct=progressPct(m);
+      const stage=summaryStageFor(m);
+      const risk=riskFor(m,projections[m.id]);
+      return `
+        <tr>
+          <td><div class="summary-material">${subjectBadge(m.name)}<span>${escapeHtml(m.name)}</span></div></td>
+          <td>${escapeHtml(m.owner||"Sem responsável")}</td>
+          <td class="${stage.pending?"summary-stage-pending":""}">${escapeHtml(stage.label)}${stage.pending?" · data pendente":stage.inferred?" · inferido":""}</td>
+          <td><strong>${pct.toFixed(0)}%</strong></td>
+          <td><span class="summary-risk ${risk.cls}">${escapeHtml(risk.label)}</span></td>
+        </tr>`;
+    }).join("");
   }
 
   function renderMetrics(projections){
@@ -1442,14 +1780,15 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     document.querySelector("#daysPerBook").value=state.daysPerBook;
     document.querySelector("#readyOutside").value=state.readyOutside;
     const projections=projectionMap();
-    renderMetrics(projections);renderMaterials(projections);renderWorkload(projections);renderTeam();renderCalendar(projections);
+    renderMetrics(projections);renderMaterials(projections);renderWorkload(projections);renderTeam();
+    renderExecutiveSummary(projections);
     initDatePickers();
   }
 
   function updateAfterPageEdit(){
     save();
     const projections=projectionMap();
-    renderMetrics(projections);renderWorkload(projections);renderCalendar(projections);
+    renderMetrics(projections);renderWorkload(projections);renderExecutiveSummary(projections);
     state.materials.forEach(m=>{
       const card=document.querySelector(`[data-card-id="${m.id}"]`);if(!card)return;
       const pct=progressPct(m),rem=remainingDays(m),p=projections[m.id],risk=riskFor(m,p),pc=riskProgressClass(risk);
@@ -1461,6 +1800,38 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       card.classList.toggle("behind",risk.cls==="bad");
     });
   }
+
+  let summaryScrollY=0;
+
+  function openExecutiveSummary(){
+    summaryScrollY=window.scrollY;
+    renderExecutiveSummary(projectionMap());
+    const overlay=document.querySelector("#summaryOverlay");
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden","false");
+    document.body.style.overflow="hidden";
+    document.querySelector("#summaryClose").focus();
+  }
+
+  function closeExecutiveSummary(){
+    const overlay=document.querySelector("#summaryOverlay");
+    overlay.classList.remove("show");
+    overlay.setAttribute("aria-hidden","true");
+    document.body.style.overflow="";
+    requestAnimationFrame(()=>window.scrollTo(0,summaryScrollY));
+    document.querySelector("#summaryFab").focus();
+  }
+
+  document.querySelector("#summaryFab").addEventListener("click",openExecutiveSummary);
+  document.querySelector("#summaryClose").addEventListener("click",closeExecutiveSummary);
+  document.querySelector("#summaryOverlay").addEventListener("click",e=>{
+    if(e.target===e.currentTarget)closeExecutiveSummary();
+  });
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&document.querySelector("#summaryOverlay").classList.contains("show")){
+      closeExecutiveSummary();
+    }
+  });
 
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="hidden"&&remoteDirty&&!remoteSaveInFlight){
@@ -1593,10 +1964,6 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   document.querySelector("#printDays").addEventListener("change",e=>{state.printDays=Math.max(1,Number(e.target.value||5));render()});
   document.querySelector("#daysPerBook").addEventListener("change",e=>{state.daysPerBook=Math.max(.5,Number(e.target.value||5));render()});
   document.querySelector("#readyOutside").addEventListener("change",e=>{state.readyOutside=Math.max(0,Number(e.target.value||0));render()});
-
-  document.querySelector("#prevMonth").addEventListener("click",()=>{calendarMonth--;if(calendarMonth<0){calendarMonth=11;calendarYear--}renderCalendar(projectionMap())});
-  document.querySelector("#nextMonth").addEventListener("click",()=>{calendarMonth++;if(calendarMonth>11){calendarMonth=0;calendarYear++}renderCalendar(projectionMap())});
-  document.querySelector("#deadlineMonth").addEventListener("click",()=>{const d=physicalDeadline();calendarYear=d.getFullYear();calendarMonth=d.getMonth();renderCalendar(projectionMap())});
 
   document.querySelector("#autoAssignBtn").addEventListener("click",()=>{
     if(!state.team.length){toast("Adicione pelo menos um designer.");return}
