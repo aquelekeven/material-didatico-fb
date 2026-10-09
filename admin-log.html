@@ -170,6 +170,7 @@ button{cursor:pointer}.hidden{display:none!important}
   function fieldLabel(v){return fields[v]||v||"Alteração"}
   function displayChangeValue(field,value){
     if(value===null||value===undefined||value==="")return field?.startsWith("flow.")?"Não marcado":"vazio";
+    if(field?.startsWith("flow.")&&String(value)==="__pending__")return "Marcado · data pendente";
     if((field?.startsWith("flow.")||field==="plannedStart"||field==="physicalDeadline")&&/^\d{4}-\d{2}-\d{2}$/.test(String(value))){
       const [y,m,d]=String(value).split("-");
       return `${d}/${m}/${y}`;

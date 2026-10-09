@@ -213,6 +213,9 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .flow-grid{display:grid;grid-template-columns:repeat(7,minmax(112px,1fr));gap:7px}
 .flow-step{border:1px solid var(--line);background:#fafafa;border-radius:12px;padding:9px;min-width:0;transition:.15s ease}
 .flow-step.done{background:var(--green-soft);border-color:#d8eedf}
+.flow-step.pending{background:var(--yellow-soft);border-color:#f1e2a6}
+.flow-step.pending .check-ui{background:var(--yellow);border-color:var(--yellow);color:#fff}
+.flow-step.pending .flow-name{color:#7a5a00}
 .flow-step:has(input:disabled){opacity:.58;background:#f5f5f6}
 .flow-check{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:24px}
 .flow-check input{position:absolute;opacity:0;pointer-events:none}
@@ -930,7 +933,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   }
 
   function riskFor(m,p){
-    if(m.flow?.completed)return{label:"Material concluído",cls:"good"};
+    if(flowStageDate(m.flow?.completed))return{label:"Material concluído",cls:"good"};
 
     const pct=progressPct(m);
     if(pct>=99.999&&p?.printed){
@@ -963,6 +966,15 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return risk.cls==="bad"?"danger":risk.cls==="warn"?"warning":risk.cls==="good"?"success":"neutral";
   }
 
+  const FLOW_PENDING="__pending__";
+
+  function flowStageDate(value){
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(value||""))?String(value):"";
+  }
+  function flowStageChecked(value){
+    return Boolean(value);
+  }
+
   function timelineMarkup(m){
     const flow={...emptyFlow(),...(m.flow||{})};
     const disabled=workflowBackendReady?"":"disabled";
@@ -975,11 +987,14 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         </div>
         <div class="flow-grid">
           ${FLOW_STAGES.map(([key,label,optional])=>{
-            const date=flow[key]||"";
+            const value=flow[key]||"";
+            const checked=flowStageChecked(value);
+            const date=flowStageDate(value);
+            const tone=checked?(date?"done":"pending"):"";
             return `
-              <div class="flow-step ${date?"done":""}">
+              <div class="flow-step ${tone}">
                 <label class="flow-check">
-                  <input type="checkbox" data-flow-check="${key}" data-id="${m.id}" ${date?"checked":""} ${disabled}>
+                  <input type="checkbox" data-flow-check="${key}" data-id="${m.id}" ${checked?"checked":""} ${disabled}>
                   <span class="check-ui">✓</span>
                   <span class="flow-name">${label}${optional?'<br><span class="flow-optional">(caso tenha)</span>':""}</span>
                 </label>
@@ -1252,7 +1267,18 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const stage=input.dataset.flowStage;
     if(stage){
       m.flow={...emptyFlow(),...(m.flow||{})};
-      m.flow[stage]=dateStr||"";
+      const stageIndex=FLOW_STAGES.findIndex(([key])=>key===stage);
+
+      if(dateStr){
+        for(let i=0;i<=stageIndex;i++){
+          const key=FLOW_STAGES[i][0];
+          if(!m.flow[key])m.flow[key]=FLOW_PENDING;
+        }
+        m.flow[stage]=dateStr;
+      }else if(m.flow[stage]){
+        m.flow[stage]=FLOW_PENDING;
+      }
+
       render();
     }
   }
@@ -1366,8 +1392,21 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     if(e.target.dataset.flowCheck&&id){
       const m=state.materials.find(x=>x.id===id);if(!m)return;
       const stage=e.target.dataset.flowCheck;
+      const stageIndex=FLOW_STAGES.findIndex(([key])=>key===stage);
       m.flow={...emptyFlow(),...(m.flow||{})};
-      m.flow[stage]=e.target.checked?(m.flow[stage]||isoDate(today())):"";
+
+      if(e.target.checked){
+        for(let i=0;i<=stageIndex;i++){
+          const key=FLOW_STAGES[i][0];
+          if(!m.flow[key])m.flow[key]=FLOW_PENDING;
+        }
+        if(!flowStageDate(m.flow[stage]))m.flow[stage]=isoDate(today());
+      }else{
+        for(let i=stageIndex;i<FLOW_STAGES.length;i++){
+          m.flow[FLOW_STAGES[i][0]]="";
+        }
+      }
+
       render();
       return;
     }
