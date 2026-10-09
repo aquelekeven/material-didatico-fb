@@ -521,6 +521,7 @@ Deno.serve(async (req) => {
       created,
       user: { id: user.id, display_name: user.display_name },
       expires_at: expiresAt,
+      capabilities: ["workflow_v2"],
     });
   }
 
@@ -528,7 +529,7 @@ Deno.serve(async (req) => {
   if (!session) return json({ error: "Sessão inválida ou expirada." }, 401);
 
   if (action === "check_session") {
-    return json({ user: session.user });
+    return json({ user: session.user, capabilities: ["workflow_v2"] });
   }
 
   if (action === "logout") {
