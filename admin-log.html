@@ -159,8 +159,23 @@ button{cursor:pointer}.hidden{display:none!important}
   function fmtDate(v){return new Date(v).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}
   function fmtShort(v){return new Date(v).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
   function safeJson(v){if(v===null||v===undefined||v==="")return "vazio";if(Array.isArray(v))return v.join(", ");if(typeof v==="object")return JSON.stringify(v);return String(v)}
-  const fields={currentPage:"Página atual",totalPages:"Total de páginas",owner:"Responsável",plannedStart:"Início previsto",name:"Nome do material",physicalDeadline:"Deadline físico",printDays:"Dias de impressão",daysPerBook:"Dias por livro",readyOutside:"Prontos fora da fila",designers:"Equipe de designers",order:"Ordem dos materiais",created:"Material criado",deleted:"Material excluído"};
+  const fields={
+    currentPage:"Página atual",totalPages:"Total de páginas",owner:"Responsável",plannedStart:"Início previsto",name:"Nome do material",
+    physicalDeadline:"Deadline físico",printDays:"Dias de impressão",daysPerBook:"Dias por livro",readyOutside:"Prontos fora da fila",
+    designers:"Equipe de designers",order:"Ordem dos materiais",created:"Material criado",deleted:"Material excluído",
+    "flow.start":"Fluxo · Início","flow.inProgress":"Fluxo · Em andamento","flow.review":"Fluxo · Revisão",
+    "flow.amendments":"Fluxo · Emendas","flow.fileClosing":"Fluxo · Fechamento de arquivo",
+    "flow.sentToPrint":"Fluxo · Envio para a gráfica","flow.completed":"Fluxo · Material concluído"
+  };
   function fieldLabel(v){return fields[v]||v||"Alteração"}
+  function displayChangeValue(field,value){
+    if(value===null||value===undefined||value==="")return field?.startsWith("flow.")?"Não marcado":"vazio";
+    if((field?.startsWith("flow.")||field==="plannedStart"||field==="physicalDeadline")&&/^\d{4}-\d{2}-\d{2}$/.test(String(value))){
+      const [y,m,d]=String(value).split("-");
+      return `${d}/${m}/${y}`;
+    }
+    return safeJson(value);
+  }
   function actionInfo(a){if(a==="state_update")return{label:"Alteração",cls:"change"};if(a==="login")return{label:"Login",cls:"login"};if(a==="logout")return{label:"Logout",cls:"logout"};if(a.startsWith("admin_"))return{label:"Admin",cls:"admin"};return{label:a,cls:"logout"}}
   function renderMetrics(){
     const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(new Date()),weekAgo=Date.now()-7*86400000;
@@ -179,7 +194,7 @@ button{cursor:pointer}.hidden{display:none!important}
       if(c.field==="created")return '<div class="change-row"><div class="change-label">'+esc(item)+'</div><div class="change-values"><span class="value-new">Material adicionado</span></div></div>';
       if(c.field==="deleted")return '<div class="change-row"><div class="change-label">'+esc(item)+'</div><div class="change-values"><span class="value-old">Material excluído</span></div></div>';
       if(c.field==="order")return '<div class="change-row"><div class="change-label">Materiais</div><div class="change-values"><span class="value-new">Ordem de prioridade alterada</span></div></div>';
-      return '<div class="change-row"><div class="change-label">'+esc(item)+' · '+esc(fieldLabel(c.field))+'</div><div class="change-values"><span class="value-old">'+esc(safeJson(c.from))+'</span><span class="arrow">→</span><span class="value-new">'+esc(safeJson(c.to))+'</span></div></div>';
+      return '<div class="change-row"><div class="change-label">'+esc(item)+' · '+esc(fieldLabel(c.field))+'</div><div class="change-values"><span class="value-old">'+esc(displayChangeValue(c.field,c.from))+'</span><span class="arrow">→</span><span class="value-new">'+esc(displayChangeValue(c.field,c.to))+'</span></div></div>';
     }).join("")+'</div>';
   }
   function message(log){if(log.action==="login")return"Entrou no painel.";if(log.action==="logout")return"Saiu/trocou de usuário.";if(log.action==="admin_login")return"Acessou o histórico administrativo.";if(log.action==="admin_logout")return"Saiu do histórico administrativo.";return"Evento registrado."}

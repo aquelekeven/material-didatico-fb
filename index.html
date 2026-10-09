@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Material Didático FB - Prazos</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 :root{
   --bg:#f5f5f7; --card:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea;
@@ -196,28 +197,43 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 .progress-fill.danger{background:linear-gradient(90deg,var(--red),var(--red2))}
 .progress-fill.warning{background:linear-gradient(90deg,var(--yellow),var(--yellow2))}
 .progress-fill.success{background:linear-gradient(90deg,var(--green),var(--green2))}
+.progress-fill.neutral{background:linear-gradient(90deg,var(--blue2),var(--blue))}
+.urgency.neutral{color:var(--muted)}
 .progress-meta{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:11px;color:var(--muted)}
 .progress-meta strong{font-size:12px;color:var(--text)}
 .urgency{font-weight:750}
 .urgency.danger{color:var(--red)} .urgency.warning{color:var(--yellow)} .urgency.success{color:var(--green)}
 .remaining-value{height:36px;border:1px solid var(--line);border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:760;background:#fafafa}
 
-/* Inline timeline */
-.timeline-wrap{margin-top:11px;padding-top:11px;border-top:1px solid #f0f0f2;display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center}
-.timeline-caption{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-.timeline{position:relative}
-.timeline-line{position:absolute;left:16.7%;right:16.7%;top:10px;height:3px;background:#e7e7eb;border-radius:99px}
-.timeline-steps{display:grid;grid-template-columns:repeat(3,1fr);position:relative}
-.t-step{text-align:center;position:relative}
-.t-dot{width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #c9c9cf;margin:0 auto 6px;box-shadow:0 0 0 4px #fff}
-.t-step.done .t-dot{background:var(--green);border-color:var(--green)}
-.t-step.current .t-dot{border-color:var(--blue)}
-.t-step.warn .t-dot{background:var(--yellow-soft);border-color:var(--yellow)}
-.t-step.bad .t-dot{background:var(--red-soft);border-color:var(--red)}
-.t-step.missing .t-dot{border-style:dashed}
-.t-name{font-size:10px;font-weight:760;color:#55555b;text-transform:uppercase;letter-spacing:.03em}
-.t-date{font-size:11px;color:var(--muted);margin-top:2px}
-.t-date strong{color:var(--text)}
+/* Fluxo de entrega com checklist e data */
+.flow-wrap{margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f2}
+.flow-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.flow-caption{font-size:11px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.045em}
+.flow-hint{font-size:11px;color:#9a9aa0}
+.flow-grid{display:grid;grid-template-columns:repeat(7,minmax(112px,1fr));gap:7px}
+.flow-step{border:1px solid var(--line);background:#fafafa;border-radius:12px;padding:9px;min-width:0;transition:.15s ease}
+.flow-step.done{background:var(--green-soft);border-color:#d8eedf}
+.flow-step:has(input:disabled){opacity:.58;background:#f5f5f6}
+.flow-check{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:24px}
+.flow-check input{position:absolute;opacity:0;pointer-events:none}
+.check-ui{width:19px;height:19px;border-radius:6px;border:1.5px solid #c7c7cc;background:#fff;display:grid;place-items:center;color:transparent;font-size:12px;font-weight:900;flex:0 0 auto;transition:.14s ease}
+.flow-check input:checked + .check-ui{background:var(--green);border-color:var(--green);color:#fff}
+.flow-name{font-size:10px;font-weight:780;line-height:1.15;color:#4f4f54;text-transform:uppercase;letter-spacing:.02em}
+.flow-optional{font-size:9px;color:var(--muted);font-weight:650;text-transform:none;letter-spacing:0}
+.flow-date{margin-top:7px;width:100%;height:32px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text);padding:0 8px;font-size:11px;font-weight:650;outline:none}
+.flow-date:focus{border-color:#9bc9f8;box-shadow:0 0 0 3px rgba(0,113,227,.07)}
+
+.date-input{cursor:pointer}
+.flatpickr-input[readonly]{cursor:pointer}
+.flatpickr-calendar{border:1px solid rgba(0,0,0,.08)!important;border-radius:16px!important;box-shadow:0 20px 50px rgba(0,0,0,.16)!important;overflow:hidden!important;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif!important}
+.flatpickr-months{padding:8px 6px 2px;background:#fff}
+.flatpickr-current-month{font-size:105%;font-weight:750}
+.flatpickr-weekdays{background:#fff}
+span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
+.flatpickr-day{border-radius:9px!important;font-weight:600}
+.flatpickr-day.today{border-color:#9bc9f8!important}
+.flatpickr-day.selected,.flatpickr-day.startRange,.flatpickr-day.endRange{background:var(--blue)!important;border-color:var(--blue)!important;color:#fff!important}
+.flatpickr-day:hover{background:#eef5ff!important;border-color:#eef5ff!important}
 
 .lower-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(330px,.65fr);gap:16px;margin-top:16px;align-items:start}
 
@@ -276,7 +292,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 @media(max-width:980px){
   .material-grid{grid-template-columns:1fr 1fr 1fr}
   .progress-block{grid-column:span 2}
-  .timeline-wrap{grid-template-columns:1fr}
+  .flow-grid{grid-template-columns:repeat(4,minmax(120px,1fr))}
 }
 @media(max-width:760px){
   .app{padding:17px}
@@ -287,6 +303,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   .material-grid{grid-template-columns:1fr 1fr}
   .progress-block{grid-column:1/-1}
   .side-stack{grid-template-columns:1fr}
+  .flow-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cal-day{min-height:95px;padding:5px}.cal-event{font-size:9px;padding:3px 4px}
 }
 @media(max-width:520px){
@@ -294,6 +311,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   .progress-block{grid-column:auto}
   .calendar-grid{font-size:9px}.cal-day{min-height:84px}
   .calendar-month{min-width:auto}
+  .flow-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -373,7 +391,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     </div>
 
     <div class="settings">
-      <div class="field"><label>Deadline físico</label><input type="date" id="physicalDeadline"></div>
+      <div class="field"><label>Deadline físico</label><input type="text" class="date-input" data-date-picker id="physicalDeadline" placeholder="dd/mm/aaaa"></div>
       <div class="field"><label>Dias úteis de impressão</label><input type="number" min="1" max="20" id="printDays"></div>
       <div class="field"><label>Dias úteis / livro completo</label><input type="number" min=".5" max="20" step=".5" id="daysPerBook"></div>
       <div class="field"><label>Prontos fora da fila</label><input type="number" min="0" max="50" id="readyOutside"></div>
@@ -441,10 +459,10 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
           <div><h2>Lógica do cronograma</h2></div>
         </div>
         <div class="logic-box">
-          <strong>Vermelho:</strong> 0% a 39% ou entrega projetada fora do prazo.<br>
-          <strong>Amarelo:</strong> 40% a 79% ou prazo muito apertado.<br>
-          <strong>Verde:</strong> 80% a 100% e projeção saudável.<br><br>
-          Se dois livros forem do mesmo designer, o segundo só começa depois que o anterior libera a fila — mesmo que o texto já esteja disponível.
+          <strong>Vermelho:</strong> prazo crítico — projeção fora do deadline ou com até 2 dias úteis de folga.<br>
+          <strong>Amarelo:</strong> prazo apertado — de 3 a 5 dias úteis de folga, ou informação essencial ainda pendente.<br>
+          <strong>Verde:</strong> projeção saudável, com mais de 5 dias úteis de folga.<br><br>
+          A porcentagem continua mostrando quanto do material foi diagramado, mas <strong>a cor da barra agora representa o risco de prazo</strong>. Se dois livros forem do mesmo designer, o segundo só começa depois que o anterior libera a fila.
         </div>
       </div>
     </aside>
@@ -466,6 +484,8 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
 <script>
 (() => {
   const STORAGE_KEY = "fb_material_didatico_prazos_v3";
@@ -487,6 +507,20 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   let applyingRemote = false;
   let remoteSaveTimer = null;
 
+  function emptyFlow(){
+    return {start:"",inProgress:"",review:"",amendments:"",fileClosing:"",sentToPrint:"",completed:""};
+  }
+
+  const FLOW_STAGES = [
+    ["start","Início",false],
+    ["inProgress","Em andamento",false],
+    ["review","Revisão",false],
+    ["amendments","Emendas",true],
+    ["fileClosing","Fechamento de arquivo",false],
+    ["sentToPrint","Envio para a gráfica",false],
+    ["completed","Material concluído",false]
+  ];
+
   const baseState = {
     physicalDeadline:"2026-10-30",
     printDays:5,
@@ -506,11 +540,13 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       {id:"m10",name:"Matemática 5º ano",owner:"",plannedStart:"",currentPage:0,totalPages:128}
     ]
   };
+  baseState.materials.forEach(m=>{m.flow=emptyFlow()});
 
   let state = load();
   let currentUser = null;
   let currentRevision = 0;
   let supabaseInitialized = false;
+  let workflowBackendReady = false;
   const initialDeadline = parseDate(state.physicalDeadline) || new Date();
   let calendarYear = initialDeadline.getFullYear();
   let calendarMonth = initialDeadline.getMonth();
@@ -530,7 +566,8 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
         owner:(m.owner==="Gabi"?"Gabriela":(m.owner||"")),
         plannedStart:m.plannedStart||"",
         currentPage:Number.isFinite(Number(m.currentPage))?Number(m.currentPage):Number(b.currentPage||0),
-        totalPages:Math.max(1,Number(m.totalPages||b.totalPages||96))
+        totalPages:Math.max(1,Number(m.totalPages||b.totalPages||96)),
+        flow:{...emptyFlow(),...(m.flow||{})}
       };
     }):clone(baseState.materials);
     return merged;
@@ -661,6 +698,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
         localStorage.removeItem(SESSION_KEY);
         localStorage.removeItem(USER_KEY);
         currentUser=null;
+        workflowBackendReady=false;
         remoteReady=false;
         setSyncStatus("Identificação necessária","warn");
         applyIdentityUi();
@@ -763,8 +801,10 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
       setSyncStatus("Identificando…","syncing");
       const result=await callMaterialApi({action:"check_session"});
       currentUser=result.user;
+      workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
+      render();
       await initSupabase();
     }catch(error){
       localStorage.removeItem(SESSION_KEY);
@@ -788,9 +828,11 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
 
       localStorage.setItem(SESSION_KEY,result.session_token);
       currentUser=result.user;
+      workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
       setSyncStatus(result.created?"Perfil criado":"Identificado","online");
+      render();
       await initSupabase();
       if(result.created)toast("Perfil criado. Nas próximas vezes, use o mesmo nome e PIN.");
     }catch(error){
@@ -888,60 +930,62 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   }
 
   function riskFor(m,p){
+    if(m.flow?.completed)return{label:"Material concluído",cls:"good"};
+
     const pct=progressPct(m);
-    if(pct>=99.999){
-      if(p?.printed&&p.printed>physicalDeadline())return{label:"Impressão atrasada",cls:"bad"};
-      return{label:"Diagramação OK",cls:"good"};
+    if(pct>=99.999&&p?.printed){
+      if(p.printed>physicalDeadline())return{label:"Não fecha prazo",cls:"bad"};
+      const completedSlack=businessDaysBetween(p.printed,physicalDeadline());
+      if(completedSlack<=2)return{label:"Prazo crítico",cls:"bad"};
+      if(completedSlack<=5)return{label:"Prazo apertado",cls:"warn"};
+      return{label:"No prazo",cls:"good"};
     }
-    if(!m.plannedStart)return{label:"Definir início",cls:"warn"};
-    if(!m.owner)return{label:"Sem responsável",cls:"warn"};
+
+    const daysToGraphics=businessDaysBetween(today(),graphicsDeadline());
+    if(!m.plannedStart){
+      if(daysToGraphics<=3)return{label:"Prazo crítico",cls:"bad"};
+      return{label:"Definir início",cls:"warn"};
+    }
+    if(!m.owner){
+      if(daysToGraphics<=3)return{label:"Prazo crítico",cls:"bad"};
+      return{label:"Sem responsável",cls:"warn"};
+    }
     if(!p?.printed)return{label:"Sem projeção",cls:"muted"};
     if(p.printed>physicalDeadline())return{label:"Não fecha prazo",cls:"bad"};
-    if(businessDaysBetween(p.printed,physicalDeadline())<=1)return{label:"Prazo apertado",cls:"warn"};
+
+    const slack=businessDaysBetween(p.printed,physicalDeadline());
+    if(slack<=2)return{label:"Prazo crítico",cls:"bad"};
+    if(slack<=5)return{label:"Prazo apertado",cls:"warn"};
     return{label:"No prazo",cls:"good"};
   }
 
-  function timelineClass(stage,m,p){
-    const now=today(),deadline=physicalDeadline(),pct=progressPct(m);
-    if(stage==="start"){
-      if(!p?.planned)return"missing";
-      return p.planned<=now?"done":"current";
-    }
-    if(stage==="graphics"){
-      if(!p?.graphics)return"missing";
-      if(p.graphics<=now||pct>=99.999)return"done";
-      return p.graphics>graphicsDeadline()?"bad":"current";
-    }
-    if(stage==="printed"){
-      if(!p?.printed)return"missing";
-      if(p.printed<=now)return"done";
-      if(p.printed>deadline)return"bad";
-      if(businessDaysBetween(p.printed,deadline)<=1)return"warn";
-      return"current";
-    }
-    return"";
+  function riskProgressClass(risk){
+    return risk.cls==="bad"?"danger":risk.cls==="warn"?"warning":risk.cls==="good"?"success":"neutral";
   }
 
-  function timelineMarkup(m,p){
+  function timelineMarkup(m){
+    const flow={...emptyFlow(),...(m.flow||{})};
+    const disabled=workflowBackendReady?"":"disabled";
+    const hint=workflowBackendReady?"Marque a etapa e registre a data":"Atualize a Edge Function para liberar este fluxo";
     return `
-      <div class="timeline-wrap">
-        <div class="timeline-caption">Fluxo de entrega</div>
-        <div class="timeline">
-          <div class="timeline-line"></div>
-          <div class="timeline-steps">
-            <div class="t-step ${timelineClass("start",m,p)}">
-              <div class="t-dot"></div><div class="t-name">Início</div>
-              <div class="t-date">${p?.planned?`<strong>${fmtDate(p.planned,true)}</strong>`:"definir"}</div>
-            </div>
-            <div class="t-step ${timelineClass("graphics",m,p)}">
-              <div class="t-dot"></div><div class="t-name">Gráfica</div>
-              <div class="t-date">${p?.graphics?`<strong>${fmtDate(p.graphics,true)}</strong>`:"—"}</div>
-            </div>
-            <div class="t-step ${timelineClass("printed",m,p)}">
-              <div class="t-dot"></div><div class="t-name">Impresso</div>
-              <div class="t-date">${p?.printed?`<strong>${fmtDate(p.printed,true)}</strong>`:"—"}</div>
-            </div>
-          </div>
+      <div class="flow-wrap">
+        <div class="flow-head">
+          <div class="flow-caption">Fluxo de entrega</div>
+          <div class="flow-hint">${hint}</div>
+        </div>
+        <div class="flow-grid">
+          ${FLOW_STAGES.map(([key,label,optional])=>{
+            const date=flow[key]||"";
+            return `
+              <div class="flow-step ${date?"done":""}">
+                <label class="flow-check">
+                  <input type="checkbox" data-flow-check="${key}" data-id="${m.id}" ${date?"checked":""} ${disabled}>
+                  <span class="check-ui">✓</span>
+                  <span class="flow-name">${label}${optional?'<br><span class="flow-optional">(caso tenha)</span>':""}</span>
+                </label>
+                <input type="text" class="flow-date date-input" data-date-picker data-flow-stage="${key}" data-id="${m.id}" value="${escapeHtml(date)}" placeholder="dd/mm/aaaa" aria-label="Data: ${escapeHtml(label)}" ${disabled}>
+              </div>`;
+          }).join("")}
         </div>
       </div>`;
   }
@@ -995,8 +1039,8 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   function renderMaterials(projections){
     const box=document.querySelector("#materialsList"); box.innerHTML="";
     state.materials.forEach((m,index)=>{
-      const pct=progressPct(m),pc=progressClass(pct),rem=remainingDays(m),p=projections[m.id],risk=riskFor(m,p);
-      const card=document.createElement("div"); card.className="material-card"+(pct<40&&pct<99.999?" behind":""); card.dataset.cardId=m.id;
+      const pct=progressPct(m),rem=remainingDays(m),p=projections[m.id],risk=riskFor(m,p),pc=riskProgressClass(risk);
+      const card=document.createElement("div"); card.className="material-card"+(risk.cls==="bad"?" behind":""); card.dataset.cardId=m.id;
       card.innerHTML=`
         <div class="material-head">
           <div class="material-index">${index+1}</div>
@@ -1021,7 +1065,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
           </div>
           <div class="mini-field">
             <label>Início previsto</label>
-            <input type="date" data-action="plannedStart" data-id="${m.id}" value="${m.plannedStart||""}">
+            <input type="text" class="date-input" data-date-picker data-action="plannedStart" data-id="${m.id}" value="${m.plannedStart||""}" placeholder="dd/mm/aaaa">
           </div>
           <div class="mini-field">
             <label>Página atual / total</label>
@@ -1034,14 +1078,14 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
           <div class="progress-block">
             <label style="display:block;font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.045em;margin:0 0 5px 2px">Progresso</label>
             <div class="progress-track"><div class="progress-fill ${pc}" data-role="fill" style="width:${pct}%"></div></div>
-            <div class="progress-meta"><strong data-role="pct">${pct.toFixed(0)}%</strong><span class="urgency ${pc}" data-role="urgency">${progressLabel(pct)}</span></div>
+            <div class="progress-meta"><strong data-role="pct">${pct.toFixed(0)}%</strong><span class="urgency ${pc}" data-role="urgency">${risk.label}</span></div>
           </div>
           <div>
             <label style="display:block;font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.045em;margin:0 0 5px 2px">Carga restante</label>
             <div class="remaining-value" data-role="remaining">${rem.toFixed(rem%1?1:0)} d.u.</div>
           </div>
         </div>
-        <div data-role="timeline">${timelineMarkup(m,p)}</div>`;
+        <div data-role="timeline">${timelineMarkup(m)}</div>`;
       box.appendChild(card);
     });
   }
@@ -1180,6 +1224,63 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),1700);
   }
 
+  let activeDatePickers=[];
+
+  function handleDatePickerChange(input,dateStr){
+    if(input.id==="physicalDeadline"){
+      if(!dateStr){
+        input._flatpickr?.setDate(state.physicalDeadline,false);
+        return;
+      }
+      state.physicalDeadline=dateStr;
+      const d=parseDate(state.physicalDeadline);
+      if(d){calendarYear=d.getFullYear();calendarMonth=d.getMonth()}
+      render();
+      return;
+    }
+
+    const id=input.dataset.id;
+    const m=state.materials.find(x=>x.id===id);
+    if(!m)return;
+
+    if(input.dataset.action==="plannedStart"){
+      m.plannedStart=dateStr||"";
+      render();
+      return;
+    }
+
+    const stage=input.dataset.flowStage;
+    if(stage){
+      m.flow={...emptyFlow(),...(m.flow||{})};
+      m.flow[stage]=dateStr||"";
+      render();
+    }
+  }
+
+  function initDatePickers(){
+    activeDatePickers.forEach(p=>{try{p.destroy()}catch(_){}});
+    activeDatePickers=[];
+    if(!window.flatpickr)return;
+
+    document.querySelectorAll("[data-date-picker]").forEach(input=>{
+      const picker=window.flatpickr(input,{
+        dateFormat:"Y-m-d",
+        altInput:true,
+        altFormat:"d/m/Y",
+        allowInput:true,
+        disableMobile:true,
+        locale:window.flatpickr?.l10ns?.pt||"default",
+        onChange:(_dates,dateStr,instance)=>handleDatePickerChange(instance.input,dateStr)
+      });
+      if(picker.altInput){
+        picker.altInput.placeholder="dd/mm/aaaa";
+        picker.altInput.classList.add("date-input");
+        picker.altInput.disabled=input.disabled;
+      }
+      activeDatePickers.push(picker);
+    });
+  }
+
   function render(){
     save();
     document.querySelector("#physicalDeadline").value=state.physicalDeadline;
@@ -1188,6 +1289,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     document.querySelector("#readyOutside").value=state.readyOutside;
     const projections=projectionMap();
     renderMetrics(projections);renderMaterials(projections);renderWorkload(projections);renderTeam();renderCalendar(projections);
+    initDatePickers();
   }
 
   function updateAfterPageEdit(){
@@ -1196,14 +1298,13 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
     renderMetrics(projections);renderWorkload(projections);renderCalendar(projections);
     state.materials.forEach(m=>{
       const card=document.querySelector(`[data-card-id="${m.id}"]`);if(!card)return;
-      const pct=progressPct(m),pc=progressClass(pct),rem=remainingDays(m),p=projections[m.id],risk=riskFor(m,p);
+      const pct=progressPct(m),rem=remainingDays(m),p=projections[m.id],risk=riskFor(m,p),pc=riskProgressClass(risk);
       const fill=card.querySelector('[data-role="fill"]');if(fill){fill.className=`progress-fill ${pc}`;fill.style.width=`${pct}%`}
       const pctEl=card.querySelector('[data-role="pct"]');if(pctEl)pctEl.textContent=`${pct.toFixed(0)}%`;
-      const urg=card.querySelector('[data-role="urgency"]');if(urg){urg.className=`urgency ${pc}`;urg.textContent=progressLabel(pct)}
+      const urg=card.querySelector('[data-role="urgency"]');if(urg){urg.className=`urgency ${pc}`;urg.textContent=risk.label}
       const remEl=card.querySelector('[data-role="remaining"]');if(remEl)remEl.textContent=`${rem.toFixed(rem%1?1:0)} d.u.`;
       const riskEl=card.querySelector('[data-role="risk"]');if(riskEl){riskEl.className=`risk ${risk.cls}`;riskEl.textContent=risk.label}
-      const tl=card.querySelector('[data-role="timeline"]');if(tl)tl.innerHTML=timelineMarkup(m,p);
-      card.classList.toggle("behind",pct<40&&pct<99.999);
+      card.classList.toggle("behind",risk.cls==="bad");
     });
   }
 
@@ -1260,8 +1361,20 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   });
 
   document.querySelector("#materialsList").addEventListener("change",e=>{
-    const a=e.target.dataset.action,id=e.target.dataset.id;if(!a||!id)return;
+    const id=e.target.dataset.id;
+
+    if(e.target.dataset.flowCheck&&id){
+      const m=state.materials.find(x=>x.id===id);if(!m)return;
+      const stage=e.target.dataset.flowCheck;
+      m.flow={...emptyFlow(),...(m.flow||{})};
+      m.flow[stage]=e.target.checked?(m.flow[stage]||isoDate(today())):"";
+      render();
+      return;
+    }
+
+    const a=e.target.dataset.action;if(!a||!id)return;
     const m=state.materials.find(x=>x.id===id);if(!m)return;
+    if(a==="plannedStart"&&e.target._flatpickr)return;
     if(a==="owner")m.owner=e.target.value;
     if(a==="plannedStart")m.plannedStart=e.target.value;
     if(a==="name")m.name=e.target.value;
@@ -1291,6 +1404,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   });
 
   document.querySelector("#physicalDeadline").addEventListener("change",e=>{
+    if(e.target._flatpickr)return;
     state.physicalDeadline=e.target.value;
     const d=parseDate(state.physicalDeadline);if(d){calendarYear=d.getFullYear();calendarMonth=d.getMonth()}
     render();
@@ -1314,7 +1428,7 @@ h1{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0
   });
 
   document.querySelector("#addMaterialBtn").addEventListener("click",()=>{
-    state.materials.push({id:"m"+Date.now(),name:"Novo material",owner:"",plannedStart:"",currentPage:0,totalPages:96});
+    state.materials.push({id:"m"+Date.now(),name:"Novo material",owner:"",plannedStart:"",currentPage:0,totalPages:96,flow:emptyFlow()});
     render();toast("Material adicionado.");
   });
 

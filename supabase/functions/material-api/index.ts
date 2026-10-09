@@ -260,6 +260,21 @@ function diffState(oldState: any, nextState: any) {
         });
       }
     }
+
+    for (const stage of ["start", "inProgress", "review", "amendments", "fileClosing", "sentToPrint", "completed"]) {
+      const before = prev?.flow?.[stage] ?? "";
+      const after = (next as any)?.flow?.[stage] ?? "";
+      if (before !== after) {
+        changes.push({
+          scope: "material",
+          material_id: id,
+          material_name: (next as any).name || prev.name,
+          field: `flow.${stage}`,
+          from: before || null,
+          to: after || null,
+        });
+      }
+    }
   }
 
   for (const [id, prev] of oldMaterials) {
@@ -506,6 +521,7 @@ Deno.serve(async (req) => {
       created,
       user: { id: user.id, display_name: user.display_name },
       expires_at: expiresAt,
+      capabilities: ["workflow_v2"],
     });
   }
 
@@ -513,7 +529,7 @@ Deno.serve(async (req) => {
   if (!session) return json({ error: "Sessão inválida ou expirada." }, 401);
 
   if (action === "check_session") {
-    return json({ user: session.user });
+    return json({ user: session.user, capabilities: ["workflow_v2"] });
   }
 
   if (action === "logout") {
