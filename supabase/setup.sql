@@ -108,3 +108,31 @@ begin
   end if;
 end
 $$;
+
+
+-- Sessões privadas do painel administrativo de histórico.
+create table if not exists public.material_didatico_admin_sessions (
+  id uuid primary key,
+  token_hash text not null unique,
+  device_id text null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  revoked_at timestamptz null
+);
+
+-- Proteção contra força bruta do PIN administrativo.
+create table if not exists public.material_didatico_admin_attempts (
+  attempt_key text primary key,
+  failed_attempts integer not null default 0,
+  locked_until timestamptz null,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists material_didatico_admin_sessions_token_hash_idx
+  on public.material_didatico_admin_sessions(token_hash);
+
+alter table public.material_didatico_admin_sessions enable row level security;
+alter table public.material_didatico_admin_attempts enable row level security;
+
+revoke all on table public.material_didatico_admin_sessions from anon, authenticated;
+revoke all on table public.material_didatico_admin_attempts from anon, authenticated;
