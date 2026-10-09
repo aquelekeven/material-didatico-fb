@@ -239,7 +239,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .flatpickr-day.selected,.flatpickr-day.startRange,.flatpickr-day.endRange{background:var(--blue)!important;border-color:var(--blue)!important;color:#fff!important}
 .flatpickr-day:hover{background:#eef5ff!important;border-color:#eef5ff!important}
 
-.lower-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(330px,.65fr);gap:16px;margin-top:16px;align-items:start}
+.lower-grid{display:block;margin-top:16px}
+.side-stack{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 
 /* Calendar */
 .calendar-toolbar{display:flex;align-items:center;gap:8px}
@@ -264,7 +265,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .cal-event.late{background:var(--red-soft);color:var(--red);border-color:#ffd7db}
 
 /* Sidebar */
-.side-stack{display:grid;gap:16px}
+
 .workload-list{display:grid;gap:12px}
 .workload-item{border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff}
 .workload-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px}
@@ -281,8 +282,102 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .logic-box strong{color:var(--text)}
 .footer-note{margin-top:14px;color:var(--muted);font-size:12px;line-height:1.5}
 
+
+.summary-fab{
+  position:fixed;right:24px;bottom:24px;z-index:9000;border:1px solid rgba(0,0,0,.08);
+  background:#1d1d1f;color:#fff;border-radius:999px;padding:12px 16px;display:flex;align-items:center;gap:9px;
+  font-weight:760;box-shadow:0 14px 34px rgba(0,0,0,.18);transition:.16s ease
+}
+.summary-fab:hover{transform:translateY(-2px);box-shadow:0 18px 42px rgba(0,0,0,.23)}
+.summary-fab-dot{width:9px;height:9px;border-radius:50%;background:#a1a1a6;box-shadow:0 0 0 4px rgba(255,255,255,.08)}
+.summary-fab.good .summary-fab-dot{background:var(--green)}
+.summary-fab.warn .summary-fab-dot{background:var(--yellow)}
+.summary-fab.bad .summary-fab-dot{background:var(--red)}
+
+.summary-overlay{
+  position:fixed;inset:0;z-index:10500;display:none;align-items:center;justify-content:center;padding:22px;
+  background:rgba(12,14,18,.48);backdrop-filter:blur(10px)
+}
+.summary-overlay.show{display:flex}
+.summary-sheet{
+  width:min(1180px,100%);max-height:min(900px,92vh);overflow:auto;background:#f7f7f9;border:1px solid rgba(255,255,255,.35);
+  border-radius:28px;box-shadow:0 32px 100px rgba(0,0,0,.3)
+}
+.summary-header{
+  position:sticky;top:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:23px 25px 18px;background:rgba(247,247,249,.94);backdrop-filter:blur(18px);border-bottom:1px solid #e8e8ec
+}
+.summary-header h2{margin:2px 0 5px;font-size:28px;letter-spacing:-.035em}
+.summary-header p{margin:0;color:var(--muted);font-size:13px}
+.summary-close{
+  width:38px;height:38px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--text);
+  font-size:20px;display:grid;place-items:center;flex:0 0 auto
+}
+.summary-content{padding:20px 25px 26px}
+.summary-hero{
+  border-radius:20px;padding:18px 20px;display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:14px;
+  border:1px solid var(--line);background:#fff
+}
+.summary-hero.good{background:var(--green-soft);border-color:#d8eedf}
+.summary-hero.warn{background:var(--yellow-soft);border-color:#f1e2a6}
+.summary-hero.bad{background:var(--red-soft);border-color:#ffd7db}
+.summary-status-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:800}
+.summary-status{font-size:30px;font-weight:820;letter-spacing:-.035em;margin-top:4px}
+.summary-hero.good .summary-status{color:var(--green)}
+.summary-hero.warn .summary-status{color:#8b6200}
+.summary-hero.bad .summary-status{color:var(--red)}
+.summary-status-text{color:#55555b;font-size:13px;line-height:1.5;margin-top:4px;max-width:700px}
+.summary-deadline{text-align:right;flex:0 0 auto}
+.summary-deadline strong{font-size:22px;display:block}
+.summary-deadline span{font-size:11px;color:var(--muted)}
+
+.summary-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.summary-kpi{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+.summary-kpi-label{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.summary-kpi-value{font-size:24px;font-weight:820;letter-spacing:-.03em;margin:6px 0 3px}
+.summary-kpi-note{font-size:11px;color:var(--muted);line-height:1.35}
+
+.summary-section{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px}
+.summary-section-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:12px}
+.summary-section-head h3{margin:0;font-size:16px}
+.summary-section-head span{font-size:11px;color:var(--muted)}
+.stage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stage-card{border:1px solid var(--line);border-radius:13px;padding:11px;background:#fafafa}
+.stage-card strong{font-size:20px;display:block;margin-bottom:3px}
+.stage-card span{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+
+.summary-two-col{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-top:12px}
+.attention-list,.team-summary-list{display:grid;gap:7px}
+.attention-item,.team-summary-item{
+  border:1px solid var(--line);border-radius:13px;padding:10px 11px;background:#fafafa
+}
+.attention-head,.team-summary-head{display:flex;justify-content:space-between;gap:9px;align-items:center}
+.attention-name,.team-summary-name{font-size:12px;font-weight:760}
+.attention-meta,.team-summary-meta{font-size:10px;color:var(--muted);margin-top:3px}
+.attention-pill{font-size:9px;font-weight:800;border-radius:999px;padding:4px 7px;white-space:nowrap}
+.attention-pill.bad{background:var(--red-soft);color:var(--red)}
+.attention-pill.warn{background:var(--yellow-soft);color:#8b6200}
+.attention-pill.good{background:var(--green-soft);color:var(--green)}
+.team-load-bar{height:6px;background:#ececf0;border-radius:99px;overflow:hidden;margin-top:7px}
+.team-load-bar>div{height:100%;background:var(--blue);border-radius:99px}
+
+.summary-table-wrap{overflow:auto}
+.summary-table{width:100%;border-collapse:collapse;min-width:760px}
+.summary-table th{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:8px 9px;border-bottom:1px solid var(--line)}
+.summary-table td{font-size:11px;padding:10px 9px;border-bottom:1px solid #f0f0f2;vertical-align:middle}
+.summary-table tr:last-child td{border-bottom:0}
+.summary-material{display:flex;align-items:center;gap:7px;font-weight:740}
+.summary-stage-pending{color:#8b6200;font-weight:760}
+.summary-risk{font-size:9px;font-weight:800;border-radius:999px;padding:4px 7px;display:inline-flex}
+.summary-risk.bad{background:var(--red-soft);color:var(--red)}
+.summary-risk.warn{background:var(--yellow-soft);color:#8b6200}
+.summary-risk.good{background:var(--green-soft);color:var(--green)}
+.summary-risk.muted{background:#f0f0f2;color:var(--muted)}
+
+.summary-empty{padding:18px;text-align:center;color:var(--muted);font-size:12px}
+
 .toast{
-  position:fixed;right:24px;bottom:24px;background:rgba(29,29,31,.94);color:#fff;padding:12px 15px;border-radius:13px;
+  position:fixed;right:24px;bottom:82px;background:rgba(29,29,31,.94);color:#fff;padding:12px 15px;border-radius:13px;
   font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.18);transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s ease;z-index:999
 }
 .toast.show{opacity:1;transform:translateY(0)}
@@ -294,11 +389,21 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   .side-stack{grid-template-columns:1fr 1fr}
 }
 @media(max-width:980px){
+  .summary-kpis{grid-template-columns:1fr 1fr}
+  .summary-two-col{grid-template-columns:1fr}
+  .stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .material-grid{grid-template-columns:1fr 1fr 1fr}
   .progress-block{grid-column:span 2}
   .flow-grid{grid-template-columns:repeat(4,minmax(120px,1fr))}
 }
 @media(max-width:760px){
+  .summary-overlay{padding:0}
+  .summary-sheet{width:100%;height:100%;max-height:none;border-radius:0}
+  .summary-header{padding:18px}
+  .summary-content{padding:14px 16px 24px}
+  .summary-hero{align-items:flex-start;flex-direction:column}
+  .summary-deadline{text-align:left}
+  .summary-fab{right:16px;bottom:16px}
   .app{padding:17px}
   .topbar{flex-direction:column}
   .top-actions{justify-content:flex-start}
@@ -311,6 +416,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   .cal-day{min-height:95px;padding:5px}.cal-event{font-size:9px;padding:3px 4px}
 }
 @media(max-width:520px){
+  .summary-kpis,.stage-grid{grid-template-columns:1fr 1fr}
   .metrics,.settings,.material-grid{grid-template-columns:1fr}
   .progress-block{grid-column:auto}
   .calendar-grid{font-size:9px}.cal-day{min-height:84px}
@@ -417,28 +523,6 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   </section>
 
   <section class="lower-grid">
-    <div class="card panel">
-      <div class="panel-title">
-        <div>
-          <h2>Calendário de produção</h2>
-          <p>Início, envio para gráfica e entrega impressa aparecem automaticamente nos respectivos dias.</p>
-        </div>
-        <div class="calendar-toolbar">
-          <button class="btn small" id="prevMonth">←</button>
-          <div class="calendar-month" id="calendarMonth">—</div>
-          <button class="btn small" id="nextMonth">→</button>
-          <button class="btn small" id="deadlineMonth">Deadline</button>
-        </div>
-      </div>
-      <div class="calendar-legend">
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--blue)"></span>Início</span>
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--purple)"></span>Gráfica</span>
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--green)"></span>Impresso</span>
-        <span class="cal-leg"><span class="cal-dot" style="background:var(--red)"></span>Impresso após deadline</span>
-      </div>
-      <div id="calendarGrid" class="calendar-grid"></div>
-    </div>
-
     <aside class="side-stack">
       <div class="card panel">
         <div class="panel-title">
@@ -471,6 +555,75 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       </div>
     </aside>
   </section>
+</div>
+
+<button class="summary-fab" id="summaryFab" type="button" aria-label="Abrir resumo executivo">
+  <span class="summary-fab-dot"></span>
+  <span>Resumo</span>
+</button>
+
+<div class="summary-overlay" id="summaryOverlay" aria-hidden="true">
+  <div class="summary-sheet" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+    <div class="summary-header">
+      <div>
+        <div class="eyebrow">Visão gerencial</div>
+        <h2 id="summaryTitle">Resumo do projeto</h2>
+        <p id="summaryUpdatedAt">Situação consolidada dos materiais e da capacidade do time.</p>
+      </div>
+      <button class="summary-close" id="summaryClose" type="button" aria-label="Fechar resumo">×</button>
+    </div>
+    <div class="summary-content">
+      <div id="summaryHero"></div>
+      <div class="summary-kpis" id="summaryKpis"></div>
+
+      <div class="summary-section">
+        <div class="summary-section-head">
+          <h3>Onde os materiais estão</h3>
+          <span>Etapa mais avançada registrada em cada material</span>
+        </div>
+        <div class="stage-grid" id="summaryStages"></div>
+      </div>
+
+      <div class="summary-two-col">
+        <div class="summary-section" style="margin-top:0">
+          <div class="summary-section-head">
+            <h3>Atenção agora</h3>
+            <span>O que merece olhar primeiro</span>
+          </div>
+          <div class="attention-list" id="summaryAttention"></div>
+        </div>
+
+        <div class="summary-section" style="margin-top:0">
+          <div class="summary-section-head">
+            <h3>Time</h3>
+            <span>Carga atualmente atribuída</span>
+          </div>
+          <div class="team-summary-list" id="summaryTeam"></div>
+        </div>
+      </div>
+
+      <div class="summary-section">
+        <div class="summary-section-head">
+          <h3>Materiais</h3>
+          <span>Leitura rápida do projeto inteiro</span>
+        </div>
+        <div class="summary-table-wrap">
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Responsável</th>
+                <th>Etapa atual</th>
+                <th>Diagramação</th>
+                <th>Prazo</th>
+              </tr>
+            </thead>
+            <tbody id="summaryMaterials"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="app-modal" id="appConfirmModal" aria-hidden="true">
