@@ -1078,7 +1078,12 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     }else{
       merged.materials=incoming.materials
         .filter(m=>mergedById.has(m.id))
-        .map(m=>mergedById.get(m.id));
+        .map(m=>{
+          const item=mergedById.get(m.id);
+          mergedById.delete(m.id);
+          return item;
+        });
+      // Só acrescenta os materiais realmente novos que não apareceram na ordem remota.
       for(const item of mergedById.values())merged.materials.push(item);
     }
 
