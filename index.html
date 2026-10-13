@@ -1141,6 +1141,12 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         setSyncStatus("Sincronizado","online");
       }
     }catch(error){
+      if(error.status===422&&error.payload?.duplicate_materials){
+        remoteDirty=true;
+        setSyncStatus("Corrigir materiais repetidos","warn");
+        renderDuplicateNotice();
+        return;
+      }
       if(error.status===409&&error.payload?.state){
         const latestRemote=normalizeState(error.payload.state);
         currentRevision=Number(error.payload.revision||0);
