@@ -796,6 +796,20 @@ Deno.serve(async (req) => {
       return json({ error: "Estado inválido." }, 400);
     }
 
+    // Bloqueia regressões: uma aba antiga não pode regravar um cadastro duplicado.
+    const nextMaterials: any[] = Array.isArray(nextState.materials) ? nextState.materials : [];
+    const duplicateNames = materialDuplicationIssues(nextMaterials);
+    const ids = nextMaterials.map(m => String(m?.id || ""));
+    const duplicateIds = ids.length !== new Set(ids).size;
+
+    if (duplicateIds || duplicateNames.length) {
+      return json({
+        error: "Há materiais repetidos. Atualize o app e use Revisar duplicados antes de salvar.",
+        duplicate_materials: true,
+        duplicate_groups: duplicateNames,
+      }, 422);
+    }
+
     const { data: current, error: stateError } = await admin
       .from("material_didatico_state")
       .select("state,revision")
