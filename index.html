@@ -536,7 +536,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         <div class="logic-box">
           <strong>5 dias úteis / livro</strong> representam esforço de produção, não uma janela isolada para cada material.<br><br>
           O prazo geral compara a <strong>carga restante em designer-dias</strong> com a capacidade dos designers trabalhando em paralelo até o limite da gráfica. Quando alguém termina sua carga atual, essa capacidade pode ser usada no próximo material.<br><br>
-          Nos cards, a cor prioriza <strong>pendências específicas do material</strong> (sem responsável, sem início, etapa sem data ou início após o limite). Sem essas pendências, o card acompanha a <strong>situação global do projeto</strong>, e não a fila individual de um designer.
+          Nos cards, a cor representa <strong>somente a situação daquele material</strong>: pendências como sem responsável, sem início, etapa sem data ou início após o limite. A <strong>situação global do projeto</strong> aparece separadamente no topo e no Resumo Executivo.
         </div>
       </div>
     </aside>
@@ -1260,17 +1260,17 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const specific=materialSpecificRisk(m);
     if(specific)return specific;
 
-    const project=projectCapacitySummary();
+    const stage=summaryStageFor(m);
 
-    if(project.cls==="bad"){
-      return{label:"Projeto crítico",cls:"bad",scope:"project"};
-    }
+    if(stage.key==="review")return{label:"Em revisão",cls:"good",scope:"material"};
+    if(stage.key==="amendments")return{label:"Emendas",cls:"good",scope:"material"};
+    if(stage.key==="fileClosing")return{label:"Fechamento",cls:"good",scope:"material"};
+    if(stage.key==="sentToPrint")return{label:"Na gráfica",cls:"good",scope:"material"};
+    if(stage.key==="completed")return{label:"Material concluído",cls:"good",scope:"material"};
+    if(stage.key==="inProgress")return{label:"Em andamento",cls:"good",scope:"material"};
+    if(stage.key==="start")return{label:"Iniciado",cls:"good",scope:"material"};
 
-    if(project.cls==="warn"){
-      return{label:"Prazo geral apertado",cls:"warn",scope:"project"};
-    }
-
-    return{label:"No prazo",cls:"good",scope:"project"};
+    return{label:"Sem pendência",cls:"good",scope:"material"};
   }
 
   function riskProgressClass(risk){
