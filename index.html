@@ -974,22 +974,19 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return teamPerformance.metrics.find(metric=>metric.name===name)||null;
   }
 
-  function bestAllocationCandidate(projections=projectionMap()){
-    const recommended=(teamPerformance.recommended_order||[]).find(name=>state.team.includes(name));
-    if(recommended)return recommended;
-
-    const {result}=workloadData(projections);
-    return [...state.team].sort((a,b)=>(result[a]?.days||0)-(result[b]?.days||0))[0]||null;
+  function bestAllocationCandidate(_projections=projectionMap()){
+    if(!teamPerformance.available||duplicateMaterialGroups().length)return null;
+    return (teamPerformance.recommended_order||[]).find(name=>state.team.includes(name))||null;
   }
 
   function teamActivityLabel(metric){
-    if(!metric)return "sem histórico";
-    if(metric.status==="stalled")return "sem avanço recente";
-    if(metric.completed_recent>0&&metric.pages_recent>0)return metric.completed_recent+" concluído(s) · +"+metric.pages_recent+" pág.";
+    if(!metric)return "sem dados suficientes";
+    if(metric.completed_recent>0&&metric.pages_recent>0)return metric.completed_recent+" concluído(s) · +"+metric.pages_recent+" pág. registradas";
     if(metric.completed_recent>0)return metric.completed_recent+" concluído(s)";
-    if(metric.pages_recent>0)return "+"+metric.pages_recent+" pág. recentes";
-    if(metric.status==="available")return "disponível";
-    return "sem avanço recente";
+    if(metric.pages_recent>0)return "+"+metric.pages_recent+" pág. registradas";
+    if(metric.status==="stalled")return "sem avanço registrado";
+    if(metric.status==="available")return "sem carga atual";
+    return "sem avanço registrado";
   }
 
   async function loadTeamPerformance({refreshSummary=true}={}){
@@ -998,10 +995,11 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     try{
       const result=await callMaterialApi({action:"team_metrics"});
       teamPerformance={
-        available:true,
+        available:result.valid===true,
         window_days:Number(result.window_days||14),
-        metrics:Array.isArray(result.metrics)?result.metrics:[],
-        recommended_order:Array.isArray(result.recommended_order)?result.recommended_order:[]
+        metrics:result.valid===true&&Array.isArray(result.metrics)?result.metrics:[],
+        recommended_order:result.valid===true&&Array.isArray(result.recommended_order)?result.recommended_order:[],
+        reason:result.valid===false?"dados_em_revisao":null
       };
 
       if(refreshSummary&&document.querySelector("#summaryOverlay")?.classList.contains("show")){
@@ -1265,6 +1263,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
           render();
           applyingRemote=false;
           setSyncStatus("Atualizado agora","online");
+          if(teamMetricsBackendReady)loadTeamPerformance({refreshSummary:true});
         }
       )
       .subscribe(status=>{
@@ -1291,7 +1290,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const result=await callMaterialApi({action:"check_session"});
       currentUser=result.user;
       workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
-      teamMetricsBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("team_metrics_v1");
+      teamMetricsBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("team_metrics_v2");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
       render();
@@ -1320,7 +1319,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       localStorage.setItem(SESSION_KEY,result.session_token);
       currentUser=result.user;
       workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
-      teamMetricsBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("team_metrics_v1");
+      teamMetricsBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("team_metrics_v2");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
       setSyncStatus(result.created?"Perfil criado":"Identificado","online");
@@ -1776,7 +1775,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       document.querySelector("#summaryTeamHeadline").innerHTML=
         duplicateMaterialGroups().length
           ? "Cadastro repetido: <strong>corrija os materiais para liberar a análise.</strong>"
-          : "Histórico em revisão. Aguardando dados confiáveis.";
+          : "Histórico em revisão. Evite comparar desempenhos por enquanto.";
 
       document.querySelector("#summaryTeam").innerHTML=teamRows.map(d=>{
         const width=Math.max(d.days>0?6:0,Math.min(100,(d.days/maxLoad)*100));
@@ -2424,6 +2423,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     if(!teamMetricsBackendReady)return toast("Atualize o servidor para distribuir com o histórico corrigido.");
     if(!state.team.length){toast("Adicione pelo menos um designer.");return}
     await loadTeamPerformance({refreshSummary:false});
+    if(!teamPerformance.available)return toast("Histórico ainda em revisão. Aguarde a correção dos dados.");
 
     const loads=Object.fromEntries(state.team.map(n=>[n,0]));
     state.materials.forEach(m=>{if(m.owner&&loads.hasOwnProperty(m.owner))loads[m.owner]+=remainingDays(m)});
