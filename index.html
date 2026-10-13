@@ -1348,13 +1348,31 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     };
   }
 
+  function projectStatusReason(c=projectCapacitySummary()){
+    if(c.afterDeadlineStarts){
+      return `${c.afterDeadlineStarts} material(is) têm início previsto depois do limite para a gráfica.`;
+    }
+    if(c.balance<0){
+      return `A carga restante é de ${c.load.toFixed(1)} designer-dias, mas o time tem ${c.capacity.toFixed(1)} designer-dias disponíveis até a gráfica. Faltam ${Math.abs(c.balance).toFixed(1)} designer-dias de capacidade.`;
+    }
+    if(c.balance<=c.teamSize){
+      return `O projeto ainda fecha, mas com só ${c.balance.toFixed(1)} designer-dia(s) de folga de capacidade.`;
+    }
+    if(c.missingStarts||c.missingOwners){
+      const parts=[];
+      if(c.missingStarts)parts.push(`${c.missingStarts} sem início definido`);
+      if(c.missingOwners)parts.push(`${c.missingOwners} sem responsável`);
+      return `Há capacidade, mas ainda existem pendências: ${parts.join(" e ")}.`;
+    }
+    return `A carga restante cabe na capacidade disponível, com ${c.balance.toFixed(1)} designer-dia(s) de folga.`;
+  }
+
   function scheduleStatus(){
     const c=projectCapacitySummary();
-    const balanceText=`${c.balance>=0?"+":""}${c.balance.toFixed(1)} designer-dia(s)`;
     return {
       label:c.label,
       cls:c.cls,
-      hint:`${c.load.toFixed(1)} d.d. de carga / ${c.capacity.toFixed(1)} d.d. disponíveis · saldo ${balanceText}`
+      hint:projectStatusReason(c)
     };
   }
 
@@ -1423,7 +1441,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     document.querySelector("#summaryProjectNote").innerHTML="<strong>"+completedTotal+" de "+total+"</strong> materiais concluídos";
 
     document.querySelector("#summaryDeadlineDonut").innerHTML='<div class="summary-donut status" style="--value:'+capacityVisual+';--ring:'+ringColor+'"><div class="summary-donut-center"><div class="summary-donut-value">'+deadlineStatus+'</div><div class="summary-donut-sub">'+Math.round(capacityUsage)+'% capacidade</div></div></div>';
-    document.querySelector("#summaryDeadlineNote").innerHTML=capacity.balance>=0?"folga de <strong>"+capacity.balance.toFixed(1)+" d.d.</strong>":"faltam <strong>"+Math.abs(capacity.balance).toFixed(1)+" d.d.</strong>";
+    document.querySelector("#summaryDeadlineNote").innerHTML=escapeHtml(projectStatusReason(capacity));
 
     document.querySelector("#summaryCriticalDonut").innerHTML='<div class="summary-donut" style="--value:'+criticalPct+';--ring:var(--red)"><div class="summary-donut-center"><div class="summary-donut-value">'+criticalCount+'</div><div class="summary-donut-sub">materiais</div></div></div>';
     document.querySelector("#summaryCriticalNote").innerHTML=criticalCount?"precisam de ação agora":"<strong>Nenhum</strong> material crítico";
