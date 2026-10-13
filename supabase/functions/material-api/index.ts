@@ -221,29 +221,6 @@ function internalAllocationBoost(name: string) {
   return key === "gabriela" || key === "diego" ? 8 : 0;
 }
 
-function uniqueMaterialKey(material: any) {
-  const name = normalizeNameKey(String(material?.name || ""));
-  if (!name || name === "novo material") return "";
-  return name;
-}
-
-function materialDuplicationIssues(materials: any[]) {
-  const byName = new Map<string, any[]>();
-  for (const material of materials) {
-    const key = uniqueMaterialKey(material);
-    if (!key) continue;
-    const group = byName.get(key) || [];
-    group.push(material);
-    byName.set(key, group);
-  }
-  return [...byName.values()]
-    .filter(group => group.length > 1)
-    .map(group => ({
-      name: String(group[0]?.name || "Material"),
-      count: group.length,
-    }));
-}
-
 async function buildTeamMetrics() {
   const { data: stateRow, error: stateError } = await admin
     .from("material_didatico_state")
@@ -257,20 +234,8 @@ async function buildTeamMetrics() {
 
   const state: any = stateRow.state || {};
   const team: string[] = Array.isArray(state.team) ? state.team : [];
-  const materials: any[] = Array.isArray(state.materials) ? state.materials : [];
-  const dupes = materialDuplicationIssues(materials);
-
-  // Não divulgar rankings produzidos a partir de registros repetidos.
-  if (dupes.length) {
-    return { valid: false, window_days: 14, duplicate_groups: dupes,
-      metrics: [], recommended_order: [] };
-  }
-
+  const materials: any[] = [...new Map((Array.isArray(state.materials) ? state.materials : []).map((m: any) => [String(m.id), m])).values()];
   const daysPerBook = Math.max(0.5, Number(state.daysPerBook || 5));
-  const now = new Date();
-  const recentCutoff = new Date(now.getTime() - 14 * 86400000).toISOString();
-  const historyCutoff = new Date(now.getTime() - 30 * 86400000).toISOString();
-  const recentCutoffDate = recentCutoff.slice(0,10);
 
   const metrics = new Map<string, any>();
   for (const name of team) {
@@ -288,22 +253,35 @@ async function buildTeamMetrics() {
     });
   }
 
-  const byId = new Map<string, any>();
+  const materialById = new Map<string, any>();
   for (const material of materials) {
-    byId.set(String(material.id), material);
-    const metric = metrics.get(material.owner);
+    materialById.set(String(material.id), material);
+    const owner = material.owner;
+    const metric = metrics.get(owner);
     if (!metric) continue;
 
-    // 100% de diagramação não equivale a material concluído.
+    const total = Math.max(1, Number(material.totalPages || 1));
+    const current = Math.max(0, Math.min(total, Number(material.currentPage || 0)));
     const completed = isIsoDate(material?.flow?.completed);
-    if (completed) metric.completed_total += 1;
+    const remaining = remainingMaterialDays(material, daysPerBook);
 
-    const remaining = completed ? 0 : remainingMaterialDays(material, daysPerBook);
-    if (remaining > 0.001) {
+    if (completed) metric.completed_total += 1;
+    if (!completed && remaining > 0.001) {
       metric.active_materials += 1;
       metric.remaining_days += remaining;
     }
+
+    if (isIsoDate(material?.flow?.completed)) {
+      const completedAt = new Date(String(material.flow.completed) + "T12:00:00Z").toISOString();
+      if (!metric.last_progress_at || completedAt > metric.last_progress_at) {
+        metric.last_progress_at = completedAt;
+      }
+    }
   }
+
+  const now = new Date();
+  const recentCutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const historyCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: logs, error: logsError } = await admin
     .from("material_didatico_audit_log")
@@ -311,87 +289,50 @@ async function buildTeamMetrics() {
     .eq("action", "state_update")
     .gte("created_at", historyCutoff)
     .order("created_at", { ascending: true })
-    .limit(3000);
+    .limit(2000);
 
   if (logsError) throw logsError;
-  if ((logs || []).length === 3000) {
-    return {valid:false,window_days:14,reason:"historico_incompleto",
-      metrics:[],recommended_order:[]};
-  }
 
-  const lastOwnerChange = new Map<string, string>();
-  const completionLogAt = new Map<string, string>();
-
-  // Identifica trocas de responsável antes de atribuir avanço ao responsável atual.
-  for (const log of logs || []) {
+  // Walk backwards to attribute each change to the owner at that time.
+  // Signed net changes prevent corrections (80 -> 40 -> 80) inflating output.
+  const historicalOwners = new Map(materials.map((m: any) => [String(m.id), m.owner]));
+  const netPages = new Map<string, {owner: string; id: string; value: number}>();
+  for (const log of [...(logs || [])].reverse()) {
     const changes = Array.isArray(log?.details?.changes) ? log.details.changes : [];
     for (const change of changes) {
       const id = String(change?.material_id || "");
-      if (!byId.has(id)) continue;
-      if (change.field === "owner") lastOwnerChange.set(id, log.created_at);
-      if (change.field === "flow.completed" && isIsoDate(change.to)) {
-        completionLogAt.set(id, log.created_at);
+      const material = materialById.get(id);
+      if (!material || change.field !== "currentPage" || log.created_at < recentCutoff) continue;
+      const ownerChange = changes.find((c: any) => String(c.material_id) === id && c.field === "owner");
+      // A simultaneous reassignment makes authorship ambiguous: exclude it.
+      if (ownerChange) continue;
+      const owner = historicalOwners.get(id);
+      if (!metrics.has(owner)) continue;
+      const limit = Math.max(1, Number(material.totalPages || 1));
+      const clamp = (v: any) => Math.max(0, Math.min(limit, Number(v || 0)));
+      const key = JSON.stringify([id, owner]);
+      const entry = netPages.get(key) || {owner, id, value: 0};
+      entry.value += clamp(change.to) - clamp(change.from);
+      netPages.set(key, entry);
+      if (clamp(change.to) > clamp(change.from)) {
+        const metric = metrics.get(owner);
+        if (!metric.last_progress_at || log.created_at > metric.last_progress_at) metric.last_progress_at = log.created_at;
       }
     }
-  }
-
-  const firstPageBefore = new Map<string, number>();
-  const lastProgressAt = new Map<string, string>();
-
-  for (const log of logs || []) {
-    const changes = Array.isArray(log?.details?.changes) ? log.details.changes : [];
     for (const change of changes) {
-      const id = String(change?.material_id || "");
-      const material = byId.get(id);
-      if (!material) continue;
-      const lastReassignment = lastOwnerChange.get(id);
-
-      if (change.field === "currentPage") {
-        const before = Number(change.from);
-        const after = Number(change.to);
-        if (!Number.isFinite(before) || !Number.isFinite(after)) continue;
-
-        if (log.created_at >= recentCutoff
-            && (!lastReassignment || log.created_at > lastReassignment)
-            && !firstPageBefore.has(id)) {
-          firstPageBefore.set(id, before);
-        }
-        if (after > before
-            && (!lastReassignment || log.created_at > lastReassignment)
-            && (!lastProgressAt.has(id) || log.created_at > lastProgressAt.get(id)!)) {
-          lastProgressAt.set(id, log.created_at);
-        }
-      }
+      if (change.field === "owner") historicalOwners.set(String(change.material_id), change.from);
     }
   }
-
+  for (const entry of netPages.values()) {
+    const material = materialById.get(entry.id);
+    metrics.get(entry.owner).pages_recent += Math.min(Math.max(0, entry.value), Math.max(0, Number(material.currentPage || 0)));
+  }
   for (const material of materials) {
-    const id = String(material.id);
-    const metric = metrics.get(material.owner);
-    if (!metric) continue;
-
-    const total = Math.max(1, Number(material.totalPages || 1));
-    const current = Math.max(0, Math.min(total, Number(material.currentPage || 0)));
-    const before = firstPageBefore.get(id);
-    // Avanço líquido: não conta duas vezes quem corrigiu, apagou e digitou de novo.
-    if (before !== undefined) {
-      metric.pages_recent += Math.max(0, Math.round(current - Math.max(0, before)));
-    }
-
-    const lastAt = lastProgressAt.get(id);
-    if (lastAt && (!metric.last_progress_at || lastAt > metric.last_progress_at)) {
-      metric.last_progress_at = lastAt;
-    }
-
-    const completionDate = String(material?.flow?.completed || "");
-    const completionAt = completionLogAt.get(id);
-    const ownerChangeAt = lastOwnerChange.get(id);
-    if (isIsoDate(completionDate) && completionDate >= recentCutoffDate
-        && completionAt && (!ownerChangeAt || completionAt >= ownerChangeAt)) {
-      metric.completed_recent += 1;
-      if (!metric.last_progress_at || completionAt > metric.last_progress_at) {
-        metric.last_progress_at = completionAt;
-      }
+    if (!isIsoDate(material?.flow?.completed)) continue;
+    const date = new Date(String(material.flow.completed) + "T12:00:00Z").toISOString();
+    if (date >= recentCutoff && date <= now.toISOString()) {
+      const metric = metrics.get(material.owner);
+      if (metric) metric.completed_recent += 1;
     }
   }
 
@@ -400,43 +341,44 @@ async function buildTeamMetrics() {
   for (const metric of metrics.values()) {
     maxPages = Math.max(maxPages, metric.pages_recent);
     maxRemaining = Math.max(maxRemaining, metric.remaining_days);
+
     if (metric.last_progress_at) {
-      metric.days_since_update = Math.max(0, Math.floor(
-        (now.getTime() - new Date(metric.last_progress_at).getTime()) / 86400000));
+      metric.days_since_update = Math.max(0, Math.floor((now.getTime() - new Date(metric.last_progress_at).getTime()) / 86400000));
     }
   }
 
   for (const metric of metrics.values()) {
     const pageScore = (metric.pages_recent / maxPages) * 35;
     const completionScore = Math.min(30, metric.completed_recent * 20 + metric.completed_total * 5);
-    const recencyScore = metric.days_since_update === null ? 0
-      : metric.days_since_update <= 1 ? 15
-      : metric.days_since_update <= 3 ? 10
-      : metric.days_since_update <= 7 ? 5 : 0;
+    const recencyScore = metric.days_since_update === null ? 0 : metric.days_since_update <= 1 ? 15 : metric.days_since_update <= 3 ? 10 : metric.days_since_update <= 7 ? 5 : 0;
     const loadScore = (1 - Math.min(1, metric.remaining_days / maxRemaining)) * 15;
     const freeScore = metric.remaining_days < 0.1 ? 15 : 0;
-    const stalled = metric.active_materials > 0 && metric.pages_recent === 0
-      && metric.completed_recent === 0 && (metric.days_since_update === null || metric.days_since_update >= 3);
+    const stalled = metric.active_materials > 0 && metric.pages_recent === 0 && metric.completed_recent === 0 && (metric.days_since_update === null || metric.days_since_update >= 3);
     const stalledPenalty = stalled ? 30 : 0;
+
     metric.status = stalled ? "stalled" : metric.remaining_days < 0.1 ? "available" : "active";
-    metric._score = pageScore + completionScore + recencyScore + loadScore + freeScore
-      + internalAllocationBoost(metric.name) - stalledPenalty;
+    metric._score = pageScore + completionScore + recencyScore + loadScore + freeScore + internalAllocationBoost(metric.name) - stalledPenalty;
   }
 
-  const ranked = [...metrics.values()].sort((a,b)=>b._score-a._score);
-  const safeMetrics = ranked.map(metric=>({
-    name:metric.name,
-    pages_recent:Math.round(metric.pages_recent),
-    completed_recent:metric.completed_recent,
-    completed_total:metric.completed_total,
-    active_materials:metric.active_materials,
-    remaining_days:Number(metric.remaining_days.toFixed(2)),
-    last_progress_at:metric.last_progress_at,
-    days_since_update:metric.days_since_update,
-    status:metric.status
+  const ranked = [...metrics.values()].sort((a, b) => b._score - a._score);
+  const safeMetrics = ranked.map((metric, index) => ({
+    name: metric.name,
+    pages_recent: Math.round(metric.pages_recent),
+    completed_recent: metric.completed_recent,
+    completed_total: metric.completed_total,
+    active_materials: metric.active_materials,
+    remaining_days: Number(metric.remaining_days.toFixed(2)),
+    last_progress_at: metric.last_progress_at,
+    days_since_update: metric.days_since_update,
+    status: metric.status,
+    allocation_rank: index + 1,
   }));
-  return {valid:true, window_days:14,metrics:safeMetrics,
-    recommended_order:safeMetrics.map(metric=>metric.name)};
+
+  return {
+    window_days: 14,
+    metrics: safeMetrics,
+    recommended_order: safeMetrics.map((metric) => metric.name),
+  };
 }
 
 function diffState(oldState: any, nextState: any) {
@@ -754,7 +696,7 @@ Deno.serve(async (req) => {
       created,
       user: { id: user.id, display_name: user.display_name },
       expires_at: expiresAt,
-      capabilities: ["workflow_v2", "team_metrics_v1", "team_metrics_v2"],
+      capabilities: ["workflow_v2", "team_metrics_v2"],
     });
   }
 
@@ -762,7 +704,7 @@ Deno.serve(async (req) => {
   if (!session) return json({ error: "Sessão inválida ou expirada." }, 401);
 
   if (action === "check_session") {
-    return json({ user: session.user, capabilities: ["workflow_v2", "team_metrics_v1", "team_metrics_v2"] });
+    return json({ user: session.user, capabilities: ["workflow_v2", "team_metrics_v2"] });
   }
 
   if (action === "team_metrics") {
@@ -794,20 +736,6 @@ Deno.serve(async (req) => {
 
     if (!nextState || typeof nextState !== "object" || Array.isArray(nextState)) {
       return json({ error: "Estado inválido." }, 400);
-    }
-
-    // Bloqueia regressões: uma aba antiga não pode regravar um cadastro duplicado.
-    const nextMaterials: any[] = Array.isArray(nextState.materials) ? nextState.materials : [];
-    const duplicateNames = materialDuplicationIssues(nextMaterials);
-    const ids = nextMaterials.map(m => String(m?.id || ""));
-    const duplicateIds = ids.length !== new Set(ids).size;
-
-    if (duplicateIds || duplicateNames.length) {
-      return json({
-        error: "Há materiais repetidos. Atualize o app e use Revisar duplicados antes de salvar.",
-        duplicate_materials: true,
-        duplicate_groups: duplicateNames,
-      }, 422);
     }
 
     const { data: current, error: stateError } = await admin
