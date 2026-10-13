@@ -319,6 +319,19 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .summary-main-card{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;text-align:center}
 .summary-mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .summary-mini-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:260px}
+.summary-mini-card.deadline-card{position:relative;cursor:help}
+.summary-card-title.with-info{display:flex;align-items:center;gap:6px;justify-content:center}
+.summary-info-dot{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:#f1f1f3;color:#6e6e73;font-size:10px;font-weight:850;text-transform:none}
+.summary-status-tooltip{position:absolute;left:50%;top:calc(100% + 10px);transform:translate(-50%,6px);width:min(340px,calc(100vw - 42px));background:#1d1d1f;color:#fff;border-radius:15px;padding:14px 15px;text-align:left;box-shadow:0 18px 48px rgba(0,0,0,.28);opacity:0;visibility:hidden;pointer-events:none;transition:.16s ease;z-index:30}
+.summary-status-tooltip::before{content:"";position:absolute;top:-6px;left:50%;width:12px;height:12px;background:#1d1d1f;transform:translateX(-50%) rotate(45deg);border-radius:2px}
+.deadline-card:hover .summary-status-tooltip,.deadline-card:focus .summary-status-tooltip,.deadline-card.tooltip-open .summary-status-tooltip{opacity:1;visibility:visible;transform:translate(-50%,0);pointer-events:auto}
+.summary-tooltip-block+.summary-tooltip-block{margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.13)}
+.summary-tooltip-label{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.055em;color:#b9c0c8;margin-bottom:5px}
+.summary-tooltip-label.reason::before{content:"?";width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff}
+.summary-tooltip-label.solution::before{content:"→";width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff}
+.summary-tooltip-text{font-size:12px;line-height:1.45;color:#f4f4f5}
+.summary-tooltip-hint{font-size:9px;color:#9ea4ab;margin-top:7px}
+
 .summary-card-title{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.055em;margin-bottom:12px}
 .summary-card-note{font-size:11px;color:var(--muted);line-height:1.35;margin-top:10px}
 .summary-card-note strong{color:var(--text)}
@@ -568,10 +581,21 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         </div>
 
         <div class="summary-mini-grid">
-          <div class="summary-mini-card">
-            <div class="summary-card-title">Prazo geral</div>
+          <div class="summary-mini-card deadline-card" id="summaryDeadlineCard" tabindex="0" aria-describedby="summaryDeadlineTooltip">
+            <div class="summary-card-title with-info">Prazo geral <span class="summary-info-dot">i</span></div>
             <div id="summaryDeadlineDonut"></div>
             <div class="summary-card-note" id="summaryDeadlineNote"></div>
+            <div class="summary-status-tooltip" id="summaryDeadlineTooltip" role="tooltip">
+              <div class="summary-tooltip-block">
+                <div class="summary-tooltip-label reason">Por que?</div>
+                <div class="summary-tooltip-text" id="summaryDeadlineReason"></div>
+              </div>
+              <div class="summary-tooltip-block">
+                <div class="summary-tooltip-label solution">O que fazer agora?</div>
+                <div class="summary-tooltip-text" id="summaryDeadlineSolution"></div>
+              </div>
+              <div class="summary-tooltip-hint">A sugestão usa a carga e as pendências atuais do painel.</div>
+            </div>
           </div>
           <div class="summary-mini-card">
             <div class="summary-card-title">Críticos</div>
@@ -1367,6 +1391,56 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return `A carga restante cabe na capacidade disponível, com ${c.balance.toFixed(1)} designer-dia(s) de folga.`;
   }
 
+  function projectStatusSuggestion(c=projectCapacitySummary(),projections=projectionMap()){
+    const {result:teamData,unassigned}=workloadData(projections);
+    const teamRows=state.team
+      .map(name=>({name,days:teamData[name]?.days||0,count:teamData[name]?.count||0}))
+      .sort((a,b)=>a.days-b.days);
+    const leastLoaded=teamRows[0]||null;
+    const mostLoaded=teamRows[teamRows.length-1]||null;
+
+    if(c.afterDeadlineStarts){
+      const lateStarts=state.materials.filter(m=>{
+        const d=parseDate(m.plannedStart);
+        return d&&d>graphicsDeadline()&&remainingDays(m)>.001;
+      }).slice(0,2).map(m=>m.name);
+      const names=lateStarts.length?" Priorize antecipar "+lateStarts.join(" e ")+".":"";
+      return "Antecipe os inícios que ficaram depois do limite da gráfica."+names;
+    }
+
+    if(c.balance<0){
+      const deficit=Math.abs(c.balance).toFixed(1);
+      const pieces=["É preciso ganhar cerca de "+deficit+" designer-dia(s) de capacidade — com produtividade extra, trabalho adicional ou apoio temporário."];
+      if(unassigned>0&&leastLoaded){
+        pieces.push("Há "+unassigned.toFixed(1)+" d.u. sem responsável; "+leastLoaded.name+" tem hoje a menor carga atribuída ("+leastLoaded.days.toFixed(1)+" d.u.) e é o primeiro candidato para absorver parte dela.");
+      }else if(leastLoaded){
+        if(leastLoaded.days<.1){
+          pieces.push(leastLoaded.name+" está sem carga atribuída no momento; vale direcionar a próxima pendência para essa pessoa.");
+        }else if(mostLoaded&&mostLoaded.days-leastLoaded.days>=1){
+          pieces.push(leastLoaded.name+" tem a menor carga atribuída ("+leastLoaded.days.toFixed(1)+" d.u.), enquanto "+mostLoaded.name+" está com "+mostLoaded.days.toFixed(1)+" d.u.; redistribuir a próxima carga ajuda a evitar gargalo.");
+        }
+      }
+      return pieces.join(" ");
+    }
+
+    if(c.missingOwners&&leastLoaded){
+      return "Defina os "+c.missingOwners+" material(is) sem responsável. "+leastLoaded.name+" tem a menor carga atribuída agora ("+leastLoaded.days.toFixed(1)+" d.u.) e pode ser a primeira opção para receber nova carga.";
+    }
+
+    if(c.missingStarts){
+      return "Defina o início dos "+c.missingStarts+" material(is) pendentes. Sem essas datas, a capacidade projetada pode parecer melhor do que realmente é.";
+    }
+
+    if(c.balance<=c.teamSize){
+      if(leastLoaded&&mostLoaded&&mostLoaded.days-leastLoaded.days>=1){
+        return "Preserve a pouca folga disponível: direcione a próxima carga para "+leastLoaded.name+", que está mais leve que "+mostLoaded.name+".";
+      }
+      return "O projeto fecha, mas sem muita gordura. Evite novas pendências e preserve a distribuição equilibrada da carga.";
+    }
+
+    return "Não há ação corretiva urgente. Mantenha a distribuição equilibrada e use quem estiver com menor carga para os próximos materiais.";
+  }
+
   function scheduleStatus(){
     const c=projectCapacitySummary();
     return {
@@ -1441,7 +1515,9 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     document.querySelector("#summaryProjectNote").innerHTML="<strong>"+completedTotal+" de "+total+"</strong> materiais concluídos";
 
     document.querySelector("#summaryDeadlineDonut").innerHTML='<div class="summary-donut status" style="--value:'+capacityVisual+';--ring:'+ringColor+'"><div class="summary-donut-center"><div class="summary-donut-value">'+deadlineStatus+'</div><div class="summary-donut-sub">'+Math.round(capacityUsage)+'% capacidade</div></div></div>';
-    document.querySelector("#summaryDeadlineNote").innerHTML=escapeHtml(projectStatusReason(capacity));
+    document.querySelector("#summaryDeadlineNote").textContent="Passe o mouse para entender";
+    document.querySelector("#summaryDeadlineReason").textContent=projectStatusReason(capacity);
+    document.querySelector("#summaryDeadlineSolution").textContent=projectStatusSuggestion(capacity,projections);
 
     document.querySelector("#summaryCriticalDonut").innerHTML='<div class="summary-donut" style="--value:'+criticalPct+';--ring:var(--red)"><div class="summary-donut-center"><div class="summary-donut-value">'+criticalCount+'</div><div class="summary-donut-sub">materiais</div></div></div>';
     document.querySelector("#summaryCriticalNote").innerHTML=criticalCount?"precisam de ação agora":"<strong>Nenhum</strong> material crítico";
@@ -1822,12 +1898,16 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const overlay=document.querySelector("#summaryOverlay");
     overlay.classList.remove("show");
     overlay.setAttribute("aria-hidden","true");
+    document.querySelector("#summaryDeadlineCard")?.classList.remove("tooltip-open");
     document.body.style.overflow="";
     requestAnimationFrame(()=>window.scrollTo(0,summaryScrollY));
     document.querySelector("#summaryFab").focus();
   }
 
   document.querySelector("#summaryFab").addEventListener("click",openExecutiveSummary);
+  document.querySelector("#summaryDeadlineCard").addEventListener("click",e=>{
+    e.currentTarget.classList.toggle("tooltip-open");
+  });
   document.querySelector("#summaryClose").addEventListener("click",closeExecutiveSummary);
   document.querySelector("#summaryOverlay").addEventListener("click",e=>{
     if(e.target===e.currentTarget)closeExecutiveSummary();
