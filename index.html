@@ -401,6 +401,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .dup-choice .dup-title{font-size:12px;font-weight:720;display:block}
 .dup-choice .dup-meta{font-size:11px;color:var(--muted);display:block;margin-top:2px}
 .dup-conflict{font-size:10px;color:#896200;margin:8px 0 0}
+.dup-keep-pages{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:11px;color:#4b4b50}
+.dup-keep-pages input{accent-color:var(--blue)}
 .dup-note{font-size:11px;line-height:1.5;color:var(--muted);margin:12px 0}
 .dup-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px}
 .dup-actions button{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;font-weight:720}
@@ -838,7 +840,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return [...group].sort((a,b)=>score(b)-score(a))[0];
   }
 
-  function mergeDuplicateGroup(group,keepIndex){
+  function mergeDuplicateGroup(group,keepIndex,{keepMaxPages=true}={}){
     // Registros duplicados pelo bug podem ter até o MESMO id. A escolha é por posição.
     const chosen=Number.isInteger(keepIndex)&&keepIndex>=0&&keepIndex<group.length
       ?group[keepIndex]:defaultDuplicateKeeper(group);
@@ -850,7 +852,9 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const current=Math.max(0,Math.min(sourceTotal,Number(m.currentPage||0)));
       return Math.round((current/sourceTotal)*total);
     }));
-    result.currentPage=Math.max(0,Math.min(total,maxProgress));
+    result.currentPage=keepMaxPages
+      ?Math.max(0,Math.min(total,maxProgress))
+      :Math.max(0,Math.min(total,Number(chosen.currentPage||0)));
 
     if(!result.owner){
       const fallback=[...group].sort((a,b)=>Number(b.currentPage||0)-Number(a.currentPage||0))
@@ -864,6 +868,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
     const flow={...emptyFlow(),...(result.flow||{})};
     for(const [key] of FLOW_STAGES){
+      // Conclusão nunca é inferida a partir de outra cópia: vale só a escolhida.
+      if(key==="completed")continue;
       if(/^\d{4}-\d{2}-\d{2}$/.test(String(flow[key]||"")))continue;
       const dates=group.map(m=>m.flow?.[key]).filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v))).sort();
       if(dates.length)flow[key]=dates[0];
@@ -2152,8 +2158,13 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const warnings=[];
       if(owners.length>1)warnings.push("Há responsáveis diferentes. O escolhido será mantido.");
       if(totals.length>1)warnings.push("Há totais de páginas diferentes. Confira antes de mesclar.");
+      if(group.some(m=>flowStageDate(m.flow?.completed))&&!group.every(m=>flowStageDate(m.flow?.completed))){
+        warnings.push("As cópias divergem na conclusão: vale somente a data final do cadastro escolhido.");
+      }
       return '<div class="dup-group"><strong>'+escapeHtml(group[0].name)+
         ' · '+group.length+' cadastros</strong>'+choices+
+        '<label class="dup-keep-pages"><input type="checkbox" name="duplicate-max-'+i+'" checked>'+
+        ' Conservar o maior avanço de páginas (desmarque se estiver errado)</label>'+
         (warnings.length?'<p class="dup-conflict">'+escapeHtml(warnings.join(" "))+'</p>':"")+'</div>';
     }).join("");
 
@@ -2194,7 +2205,11 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const keepIds=new Map();
     for(let i=0;i<groups.length;i++){
       const selected=document.querySelector('input[name="duplicate-keep-'+i+'"]:checked');
-      keepIds.set(materialTitleKey(groups[i][0]),selected?Number(selected.value):groups[i].indexOf(defaultDuplicateKeeper(groups[i])));
+      const keepMax=document.querySelector('input[name="duplicate-max-'+i+'"]')?.checked!==false;
+      keepIds.set(materialTitleKey(groups[i][0]),{
+        index:selected?Number(selected.value):groups[i].indexOf(defaultDuplicateKeeper(groups[i])),
+        keepMaxPages:keepMax
+      });
     }
 
     const seen=new Set(),fixed=[];
@@ -2204,7 +2219,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       if(group){
         if(seen.has(key))continue;
         seen.add(key);
-        fixed.push(mergeDuplicateGroup(group,keepIds.get(key)));
+        const choice=keepIds.get(key);
+        fixed.push(mergeDuplicateGroup(group,choice?.index,choice));
       }else fixed.push(material);
     }
 
