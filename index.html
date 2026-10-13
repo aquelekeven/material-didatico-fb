@@ -375,6 +375,38 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .attention-meta{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.35}
 .summary-empty{padding:22px;text-align:center;color:var(--muted);font-size:12px}
 
+[hidden]{display:none!important}
+.duplicate-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin:0 0 14px;padding:13px 15px;border-radius:14px;border:1px solid #f0d99c;
+  background:#fff8de;color:#604800
+}
+.duplicate-banner strong{display:block;font-size:13px;margin-bottom:3px}
+.duplicate-banner span{font-size:12px;line-height:1.4}
+.duplicate-banner button{background:#fff;border:1px solid #dfc77f;border-radius:10px;padding:8px 11px;font-weight:760}
+.dup-overlay{
+  position:fixed;inset:0;z-index:12000;display:none;align-items:center;justify-content:center;
+  background:rgba(14,18,24,.55);backdrop-filter:blur(7px);padding:18px
+}
+.dup-overlay.open{display:flex}
+.dup-dialog{width:min(660px,100%);max-height:min(800px,94vh);overflow:auto;background:#fff;border-radius:22px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.25)}
+.dup-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.dup-head h2{margin:0 0 6px;font-size:23px}
+.dup-head p{font-size:12px;line-height:1.5;color:var(--muted);margin:0}
+.dup-list{display:grid;gap:10px;margin:16px 0}
+.dup-group{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fafafa}
+.dup-group>strong{display:block;font-size:13px;margin-bottom:8px}
+.dup-choice{display:flex;gap:9px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px;margin-top:6px;cursor:pointer}
+.dup-choice input{accent-color:var(--blue)}
+.dup-choice .dup-title{font-size:12px;font-weight:720;display:block}
+.dup-choice .dup-meta{font-size:11px;color:var(--muted);display:block;margin-top:2px}
+.dup-conflict{font-size:10px;color:#896200;margin:8px 0 0}
+.dup-note{font-size:11px;line-height:1.5;color:var(--muted);margin:12px 0}
+.dup-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px}
+.dup-actions button{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;font-weight:720}
+.dup-actions button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.dup-actions button:disabled{opacity:.45;cursor:not-allowed}
+
 .toast{
   position:fixed;right:24px;bottom:82px;background:rgba(29,29,31,.94);color:#fff;padding:12px 15px;border-radius:13px;
   font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.18);transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s ease;z-index:999
@@ -498,6 +530,14 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         <p>Agora tudo cabe no painel: dados principais em cima e o fluxo de entrega logo abaixo de cada material.</p>
       </div>
       <button class="btn small danger" id="resetBtn">Restaurar base</button>
+    </div>
+
+    <div class="duplicate-banner" id="duplicateBanner" hidden>
+      <div>
+        <strong>Materiais repetidos encontrados</strong>
+        <span id="duplicateBannerText">Eles podem distorcer os prazos e o resumo.</span>
+      </div>
+      <button id="duplicateReviewBtn" type="button">Revisar duplicados</button>
     </div>
 
     <div class="settings">
@@ -638,6 +678,25 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         </div>
       </div>
     </div>    </div>
+  </div>
+</div>
+
+<div class="dup-overlay" id="duplicateOverlay" aria-hidden="true">
+  <div class="dup-dialog" role="dialog" aria-modal="true" aria-labelledby="dupTitle">
+    <div class="dup-head">
+      <div>
+        <h2 id="dupTitle">Revisar materiais repetidos</h2>
+        <p>Escolha qual cadastro manter para cada livro. O sistema preserva o maior progresso e as datas registradas.</p>
+      </div>
+      <button class="summary-close" id="duplicateCloseBtn" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div id="duplicateGroupList" class="dup-list"></div>
+    <p class="dup-note">Se dois materiais tiverem nomes iguais mas forem edições diferentes, feche e renomeie um deles antes de corrigir. Nenhum registro será apagado sem seu clique.</p>
+    <div class="dup-actions">
+      <button type="button" id="duplicateCancelBtn">Cancelar</button>
+      <button type="button" id="duplicateBackupBtn">1. Baixar backup</button>
+      <button type="button" id="duplicateApplyBtn" class="primary" disabled>2. Corrigir repetidos</button>
+    </div>
   </div>
 </div>
 
