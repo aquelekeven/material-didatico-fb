@@ -155,11 +155,12 @@ Se o painel identificar materiais com o mesmo título, ele mostra um aviso **Mat
 1. Peça a todos que atualizem a página para carregar o código mais recente.
 2. No painel principal, clique em **Revisar duplicados**.
 3. Confira cada grupo e escolha o cadastro que deve prevalecer, especialmente se os responsáveis forem diferentes.
-4. Clique em **1. Baixar backup** e guarde o JSON completo.
-5. Clique em **2. Corrigir repetidos** para consolidar os registros e sincronizar com a nuvem.
-6. Atualize a página e confira os números.
+4. Se algum registro apresentar páginas erradas, desmarque **Conservar o maior avanço de páginas** naquele livro. Se as cópias divergirem na conclusão, escolha a que tem a data final correta.
+5. Clique em **1. Baixar backup** e guarde o JSON completo.
+6. Clique em **2. Corrigir repetidos** para consolidar os registros e sincronizar com a nuvem.
+7. Atualize a página e confira os números.
 
-A correção não soma páginas duplicadas: mantém o maior percentual de diagramação registrado, consolida as datas das etapas e usa o responsável do cadastro escolhido. Se dois materiais forem realmente edições distintas, renomeie um deles antes de corrigir.
+A correção não soma páginas duplicadas: por padrão mantém o maior percentual de diagramação registrado (com opção de manter o valor escolhido), consolida as datas das etapas anteriores e usa o responsável do cadastro escolhido. A data de **Material concluído** é mantida exclusivamente do cadastro escolhido. Se dois materiais forem realmente edições distintas, renomeie um deles antes de corrigir.
 
 O código corrige a causa da duplicação no merge entre sessões e exige a Edge Function atualizada para impedir que abas antigas voltem a salvar duplicações.
 
