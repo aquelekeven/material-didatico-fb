@@ -206,6 +206,175 @@ async function getSession(req: Request) {
   };
 }
 
+function isIsoDate(value: unknown) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
+function remainingMaterialDays(material: any, daysPerBook: number) {
+  const total = Math.max(1, Number(material?.totalPages || 1));
+  const current = Math.max(0, Math.min(total, Number(material?.currentPage || 0)));
+  return Math.max(0, daysPerBook * (1 - current / total));
+}
+
+function internalAllocationBoost(name: string) {
+  const key = normalizeNameKey(name);
+  return key === "gabriela" || key === "diego" ? 8 : 0;
+}
+
+async function buildTeamMetrics() {
+  const { data: stateRow, error: stateError } = await admin
+    .from("material_didatico_state")
+    .select("state")
+    .eq("id", "main")
+    .single();
+
+  if (stateError || !stateRow?.state) {
+    throw new Error("Estado compartilhado não encontrado para métricas da equipe.");
+  }
+
+  const state: any = stateRow.state || {};
+  const team: string[] = Array.isArray(state.team) ? state.team : [];
+  const materials: any[] = Array.isArray(state.materials) ? state.materials : [];
+  const daysPerBook = Math.max(0.5, Number(state.daysPerBook || 5));
+
+  const metrics = new Map<string, any>();
+  for (const name of team) {
+    metrics.set(name, {
+      name,
+      pages_recent: 0,
+      completed_recent: 0,
+      completed_total: 0,
+      active_materials: 0,
+      remaining_days: 0,
+      last_progress_at: null,
+      days_since_update: null,
+      status: "active",
+      _score: 0,
+    });
+  }
+
+  const materialById = new Map<string, any>();
+  for (const material of materials) {
+    materialById.set(String(material.id), material);
+    const owner = material.owner;
+    const metric = metrics.get(owner);
+    if (!metric) continue;
+
+    const total = Math.max(1, Number(material.totalPages || 1));
+    const current = Math.max(0, Math.min(total, Number(material.currentPage || 0)));
+    const completed = isIsoDate(material?.flow?.completed) || current >= total;
+    const remaining = remainingMaterialDays(material, daysPerBook);
+
+    if (completed) metric.completed_total += 1;
+    if (!completed && remaining > 0.001) {
+      metric.active_materials += 1;
+      metric.remaining_days += remaining;
+    }
+
+    if (isIsoDate(material?.flow?.completed)) {
+      const completedAt = new Date(String(material.flow.completed) + "T12:00:00Z").toISOString();
+      if (!metric.last_progress_at || completedAt > metric.last_progress_at) {
+        metric.last_progress_at = completedAt;
+      }
+    }
+  }
+
+  const now = new Date();
+  const recentCutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const historyCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: logs, error: logsError } = await admin
+    .from("material_didatico_audit_log")
+    .select("created_at,details")
+    .eq("action", "state_update")
+    .gte("created_at", historyCutoff)
+    .order("created_at", { ascending: true })
+    .limit(2000);
+
+  if (logsError) throw logsError;
+
+  const recentCompletionIds = new Set<string>();
+
+  for (const log of logs || []) {
+    const changes = Array.isArray(log?.details?.changes) ? log.details.changes : [];
+    for (const change of changes) {
+      const materialId = String(change?.material_id || "");
+      const material = materialById.get(materialId);
+      if (!material) continue;
+      const metric = metrics.get(material.owner);
+      if (!metric) continue;
+
+      if (change.field === "currentPage") {
+        const before = Number(change.from || 0);
+        const after = Number(change.to || 0);
+        const delta = Math.max(0, after - before);
+        if (delta > 0) {
+          if (log.created_at >= recentCutoff) metric.pages_recent += delta;
+          if (!metric.last_progress_at || log.created_at > metric.last_progress_at) metric.last_progress_at = log.created_at;
+
+          const total = Math.max(1, Number(material.totalPages || 1));
+          if (after >= total && before < total) recentCompletionIds.add(materialId);
+        }
+      }
+
+      if (change.field === "flow.completed" && isIsoDate(change.to)) {
+        recentCompletionIds.add(materialId);
+        if (!metric.last_progress_at || log.created_at > metric.last_progress_at) metric.last_progress_at = log.created_at;
+      }
+    }
+  }
+
+  for (const materialId of recentCompletionIds) {
+    const material = materialById.get(materialId);
+    const metric = material ? metrics.get(material.owner) : null;
+    if (metric) metric.completed_recent += 1;
+  }
+
+  let maxPages = 1;
+  let maxRemaining = 1;
+  for (const metric of metrics.values()) {
+    maxPages = Math.max(maxPages, metric.pages_recent);
+    maxRemaining = Math.max(maxRemaining, metric.remaining_days);
+
+    if (metric.last_progress_at) {
+      metric.days_since_update = Math.max(0, Math.floor((now.getTime() - new Date(metric.last_progress_at).getTime()) / 86400000));
+    }
+  }
+
+  for (const metric of metrics.values()) {
+    const pageScore = (metric.pages_recent / maxPages) * 35;
+    const completionScore = Math.min(30, metric.completed_recent * 20 + metric.completed_total * 5);
+    const recencyScore = metric.days_since_update === null ? 0 : metric.days_since_update <= 1 ? 15 : metric.days_since_update <= 3 ? 10 : metric.days_since_update <= 7 ? 5 : 0;
+    const loadScore = (1 - Math.min(1, metric.remaining_days / maxRemaining)) * 15;
+    const freeScore = metric.remaining_days < 0.1 ? 15 : 0;
+    const stalled = metric.active_materials > 0 && metric.pages_recent === 0 && metric.completed_recent === 0 && (metric.days_since_update === null || metric.days_since_update >= 3);
+    const stalledPenalty = stalled ? 30 : 0;
+
+    metric.status = stalled ? "stalled" : metric.remaining_days < 0.1 ? "available" : "active";
+    metric._score = pageScore + completionScore + recencyScore + loadScore + freeScore + internalAllocationBoost(metric.name) - stalledPenalty;
+  }
+
+  const ranked = [...metrics.values()].sort((a, b) => b._score - a._score);
+  const safeMetrics = ranked.map((metric, index) => ({
+    name: metric.name,
+    pages_recent: Math.round(metric.pages_recent),
+    completed_recent: metric.completed_recent,
+    completed_total: metric.completed_total,
+    active_materials: metric.active_materials,
+    remaining_days: Number(metric.remaining_days.toFixed(2)),
+    last_progress_at: metric.last_progress_at,
+    days_since_update: metric.days_since_update,
+    status: metric.status,
+    allocation_rank: index + 1,
+  }));
+
+  return {
+    window_days: 14,
+    metrics: safeMetrics,
+    recommended_order: safeMetrics.map((metric) => metric.name),
+  };
+}
+
 function diffState(oldState: any, nextState: any) {
   const changes: any[] = [];
   const settings = ["physicalDeadline", "printDays", "daysPerBook", "readyOutside"];
@@ -521,7 +690,7 @@ Deno.serve(async (req) => {
       created,
       user: { id: user.id, display_name: user.display_name },
       expires_at: expiresAt,
-      capabilities: ["workflow_v2"],
+      capabilities: ["workflow_v2", "team_metrics_v1"],
     });
   }
 
@@ -529,8 +698,19 @@ Deno.serve(async (req) => {
   if (!session) return json({ error: "Sessão inválida ou expirada." }, 401);
 
   if (action === "check_session") {
-    return json({ user: session.user, capabilities: ["workflow_v2"] });
+    return json({ user: session.user, capabilities: ["workflow_v2", "team_metrics_v1"] });
   }
+
+  if (action === "team_metrics") {
+    try {
+      const metrics = await buildTeamMetrics();
+      return json(metrics);
+    } catch (error) {
+      console.error(error);
+      return json({ error: "Não foi possível calcular o ritmo da equipe." }, 500);
+    }
+  }
+
 
   if (action === "logout") {
     await admin
