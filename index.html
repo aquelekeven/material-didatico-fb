@@ -536,7 +536,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         <div class="logic-box">
           <strong>5 dias úteis / livro</strong> representam esforço de produção, não uma janela isolada para cada material.<br><br>
           O prazo geral compara a <strong>carga restante em designer-dias</strong> com a capacidade dos designers trabalhando em paralelo até o limite da gráfica. Quando alguém termina sua carga atual, essa capacidade pode ser usada no próximo material.<br><br>
-          <strong>Vermelho:</strong> a carga ultrapassa a capacidade disponível. <strong>Amarelo:</strong> fecha com pouca folga ou ainda há informações essenciais pendentes. <strong>Verde:</strong> há capacidade confortável.
+          Nos cards, a cor prioriza <strong>pendências específicas do material</strong> (sem responsável, sem início, etapa sem data ou início após o limite). Sem essas pendências, o card acompanha a <strong>situação global do projeto</strong>, e não a fila individual de um designer.
         </div>
       </div>
     </aside>
@@ -1227,34 +1227,50 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return out;
   }
 
-  function riskFor(m,p){
-    if(flowStageDate(m.flow?.completed))return{label:"Material concluído",cls:"good"};
+  function materialHasPendingFlowDate(m){
+    return Object.values(m.flow||{}).some(value=>value===FLOW_PENDING);
+  }
 
-    const pct=progressPct(m);
-    if(pct>=99.999&&p?.printed){
-      if(p.printed>physicalDeadline())return{label:"Não fecha prazo",cls:"bad"};
-      const completedSlack=businessDaysBetween(p.printed,physicalDeadline());
-      if(completedSlack<=2)return{label:"Prazo crítico",cls:"bad"};
-      if(completedSlack<=5)return{label:"Prazo apertado",cls:"warn"};
-      return{label:"No prazo",cls:"good"};
+  function materialSpecificRisk(m){
+    if(flowStageDate(m.flow?.completed))return{label:"Material concluído",cls:"good",scope:"material"};
+
+    const start=parseDate(m.plannedStart);
+    const limit=graphicsDeadline();
+
+    if(start&&limit&&start>limit){
+      return{label:"Início após limite",cls:"bad",scope:"material"};
     }
 
-    const daysToGraphics=businessDaysBetween(today(),graphicsDeadline());
-    if(!m.plannedStart){
-      if(daysToGraphics<=3)return{label:"Prazo crítico",cls:"bad"};
-      return{label:"Definir início",cls:"warn"};
+    if(!m.owner&&remainingDays(m)>.001){
+      return{label:"Sem responsável",cls:"warn",scope:"material"};
     }
-    if(!m.owner){
-      if(daysToGraphics<=3)return{label:"Prazo crítico",cls:"bad"};
-      return{label:"Sem responsável",cls:"warn"};
-    }
-    if(!p?.printed)return{label:"Sem projeção",cls:"muted"};
-    if(p.printed>physicalDeadline())return{label:"Não fecha prazo",cls:"bad"};
 
-    const slack=businessDaysBetween(p.printed,physicalDeadline());
-    if(slack<=2)return{label:"Prazo crítico",cls:"bad"};
-    if(slack<=5)return{label:"Prazo apertado",cls:"warn"};
-    return{label:"No prazo",cls:"good"};
+    if(!m.plannedStart&&remainingDays(m)>.001){
+      return{label:"Definir início",cls:"warn",scope:"material"};
+    }
+
+    if(materialHasPendingFlowDate(m)){
+      return{label:"Etapa sem data",cls:"warn",scope:"material"};
+    }
+
+    return null;
+  }
+
+  function riskFor(m,_p){
+    const specific=materialSpecificRisk(m);
+    if(specific)return specific;
+
+    const project=projectCapacitySummary();
+
+    if(project.cls==="bad"){
+      return{label:"Projeto crítico",cls:"bad",scope:"project"};
+    }
+
+    if(project.cls==="warn"){
+      return{label:"Prazo geral apertado",cls:"warn",scope:"project"};
+    }
+
+    return{label:"No prazo",cls:"good",scope:"project"};
   }
 
   function riskProgressClass(risk){
@@ -1382,7 +1398,10 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const projectPct=total?Math.round((completedTotal/total)*100):0;
 
     const activeMaterials=state.materials.filter(m=>!flowStageDate(m.flow?.completed));
-    const criticalCount=activeMaterials.filter(m=>riskFor(m,projections[m.id]).cls==="bad").length;
+    const criticalCount=activeMaterials.filter(m=>{
+      const risk=materialSpecificRisk(m);
+      return risk?.cls==="bad";
+    }).length;
     const criticalPct=activeMaterials.length?Math.round((criticalCount/activeMaterials.length)*100):0;
 
     const pendingMaterials=state.materials.filter(m=>{
@@ -1451,7 +1470,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     }).join("")+(unassigned>0?'<div class="team-overview" style="margin:3px 0 0;color:#8b6200"><strong>'+unassigned.toFixed(1)+' d.u.</strong> ainda sem responsável</div>':"");
 
     const attention=state.materials.map(m=>{
-      const risk=riskFor(m,projections[m.id]);
+      const risk=materialSpecificRisk(m)||riskFor(m,projections[m.id]);
       const pendingDates=Object.values(m.flow||{}).filter(v=>v===FLOW_PENDING).length;
       const issues=[];
       if(risk.cls==="bad")issues.push(risk.label);
