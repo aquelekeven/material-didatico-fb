@@ -2076,6 +2076,142 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     });
   }
 
+  let duplicateBackupReady=false;
+  let duplicateSnapshot="";
+
+  function renderDuplicateNotice(){
+    const groups=duplicateMaterialGroups();
+    const banner=document.querySelector("#duplicateBanner");
+    banner.hidden=groups.length===0;
+
+    if(groups.length){
+      const extras=groups.reduce((sum,group)=>sum+group.length-1,0);
+      document.querySelector("#duplicateBannerText").textContent=
+        extras+" cadastro(s) repetido(s) em "+groups.length+" livro(s). Revise antes de confiar no prazo.";
+    }
+
+    const assign=document.querySelector("#autoAssignBtn");
+    if(assign){
+      assign.disabled=groups.length>0||(!teamMetricsBackendReady&&!!currentUser);
+      assign.title=groups.length
+        ?"Corrija os materiais repetidos antes de distribuir."
+        :!teamMetricsBackendReady
+          ?"Atualize a Edge Function para ativar a nova análise."
+          :"Distribuir materiais pelo ritmo registrado da equipe.";
+    }
+  }
+
+  function closeDuplicateReview(){
+    const overlay=document.querySelector("#duplicateOverlay");
+    overlay.classList.remove("open");
+    overlay.setAttribute("aria-hidden","true");
+    document.body.style.overflow="";
+    duplicateBackupReady=false;
+  }
+
+  function openDuplicateReview(){
+    const groups=duplicateMaterialGroups();
+    if(!groups.length)return toast("Não há materiais repetidos agora.");
+    if(!remoteReady||!currentUser)return toast("Aguarde a conexão com a nuvem antes de corrigir.");
+
+    duplicateSnapshot=JSON.stringify(state);
+    duplicateBackupReady=false;
+    document.querySelector("#duplicateApplyBtn").disabled=true;
+    const list=document.querySelector("#duplicateGroupList");
+
+    list.innerHTML=groups.map((group,i)=>{
+      const defaultId=String(defaultDuplicateKeeper(group).id);
+      const owners=[...new Set(group.map(m=>m.owner).filter(Boolean))];
+      const totals=[...new Set(group.map(m=>Number(m.totalPages||0)))];
+
+      const choices=group.map(m=>{
+        const checked=String(m.id)===defaultId?"checked":"";
+        const pct=Math.round(100*Number(m.currentPage||0)/Math.max(1,Number(m.totalPages||1)));
+        const done=m.flow?.completed&&flowStageDate(m.flow.completed)?" · concluído registrado":"";
+        return '<label class="dup-choice">'+
+          '<input type="radio" name="duplicate-keep-'+i+'" value="'+escapeHtml(m.id)+'" '+checked+'>'+
+          '<span><span class="dup-title">'+escapeHtml(m.owner||"Sem responsável")+
+          ' · '+Number(m.currentPage||0)+'/'+Number(m.totalPages||0)+' páginas'+done+'</span>'+
+          '<span class="dup-meta">'+pct+'% diagramado · '+escapeHtml(m.plannedStart||"sem início")+
+          ' · cadastro '+escapeHtml(m.id)+'</span></span></label>';
+      }).join("");
+
+      const warnings=[];
+      if(owners.length>1)warnings.push("Há responsáveis diferentes. O escolhido será mantido.");
+      if(totals.length>1)warnings.push("Há totais de páginas diferentes. Confira antes de mesclar.");
+      return '<div class="dup-group"><strong>'+escapeHtml(group[0].name)+
+        ' · '+group.length+' cadastros</strong>'+choices+
+        (warnings.length?'<p class="dup-conflict">'+escapeHtml(warnings.join(" "))+'</p>':"")+'</div>';
+    }).join("");
+
+    const overlay=document.querySelector("#duplicateOverlay");
+    overlay.classList.add("open");
+    overlay.setAttribute("aria-hidden","false");
+    document.body.style.overflow="hidden";
+    document.querySelector("#duplicateBackupBtn").focus();
+  }
+
+  function backupBeforeDeduplication(){
+    const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download="material-fb-backup-antes-de-corrigir-"+isoDate(today())+".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    duplicateBackupReady=true;
+    document.querySelector("#duplicateApplyBtn").disabled=false;
+  }
+
+  async function applyDuplicateCorrection(){
+    if(!duplicateBackupReady)return toast("Baixe primeiro o backup dos dados.");
+    if(!remoteReady||remoteSaveInFlight)return toast("Aguarde a sincronização para corrigir com segurança.");
+    if(JSON.stringify(state)!==duplicateSnapshot){
+      duplicateBackupReady=false;
+      document.querySelector("#duplicateApplyBtn").disabled=true;
+      toast("O painel mudou desde o backup. Abra a revisão novamente.");
+      closeDuplicateReview();
+      return;
+    }
+
+    const groups=duplicateMaterialGroups();
+    const groupByTitle=new Map(groups.map(group=>[materialTitleKey(group[0]),group]));
+    const keepIds=new Map();
+    for(let i=0;i<groups.length;i++){
+      const selected=document.querySelector('input[name="duplicate-keep-'+i+'"]:checked');
+      keepIds.set(materialTitleKey(groups[i][0]),selected?.value||defaultDuplicateKeeper(groups[i]).id);
+    }
+
+    const seen=new Set(),fixed=[];
+    for(const material of state.materials){
+      const key=materialTitleKey(material);
+      const group=groupByTitle.get(key);
+      if(group){
+        if(seen.has(key))continue;
+        seen.add(key);
+        fixed.push(mergeDuplicateGroup(group,keepIds.get(key)));
+      }else fixed.push(material);
+    }
+
+    const removed=state.materials.length-fixed.length;
+    if(removed<=0)return closeDuplicateReview();
+
+    state=normalizeState({...state,materials:fixed});
+    closeDuplicateReview();
+    render();
+    if(remoteSaveTimer!==null){
+      clearTimeout(remoteSaveTimer);
+      remoteSaveTimer=null;
+    }
+    await pushStateToSupabase();
+    toast(remoteDirty
+      ?"Registros corrigidos aqui; sincronização pendente."
+      :removed+" registro(s) repetido(s) consolidados e salvos.");
+    await loadTeamPerformance({refreshSummary:true});
+  }
+
   function render(){
     save();
     document.querySelector("#physicalDeadline").value=state.physicalDeadline;
@@ -2085,6 +2221,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const projections=projectionMap();
     renderMetrics(projections);renderMaterials(projections);renderWorkload(projections);renderTeam();
     renderExecutiveSummary(projections);
+    renderDuplicateNotice();
     initDatePickers();
   }
 
@@ -2126,6 +2263,15 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     requestAnimationFrame(()=>window.scrollTo(0,summaryScrollY));
     document.querySelector("#summaryFab").focus();
   }
+
+  document.querySelector("#duplicateReviewBtn").addEventListener("click",openDuplicateReview);
+  document.querySelector("#duplicateCloseBtn").addEventListener("click",closeDuplicateReview);
+  document.querySelector("#duplicateCancelBtn").addEventListener("click",closeDuplicateReview);
+  document.querySelector("#duplicateOverlay").addEventListener("click",e=>{
+    if(e.target===e.currentTarget)closeDuplicateReview();
+  });
+  document.querySelector("#duplicateBackupBtn").addEventListener("click",backupBeforeDeduplication);
+  document.querySelector("#duplicateApplyBtn").addEventListener("click",applyDuplicateCorrection);
 
   document.querySelector("#summaryFab").addEventListener("click",openExecutiveSummary);
   document.querySelector("#summaryDeadlineCard").addEventListener("click",e=>{
@@ -2274,6 +2420,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   document.querySelector("#readyOutside").addEventListener("change",e=>{state.readyOutside=Math.max(0,Number(e.target.value||0));render()});
 
   document.querySelector("#autoAssignBtn").addEventListener("click",async()=>{
+    if(duplicateMaterialGroups().length)return toast("Revise os materiais duplicados antes de distribuir.");
+    if(!teamMetricsBackendReady)return toast("Atualize o servidor para distribuir com o histórico corrigido.");
     if(!state.team.length){toast("Adicione pelo menos um designer.");return}
     await loadTeamPerformance({refreshSummary:false});
 
