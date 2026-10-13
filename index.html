@@ -362,11 +362,11 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 .team-summary-list{display:grid;gap:10px}
 .team-overview{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px}
 .team-overview strong{color:var(--text)}
-.team-summary-row{display:grid;grid-template-columns:90px minmax(0,1fr) 48px;gap:9px;align-items:center}
+.team-summary-row{display:grid;grid-template-columns:90px minmax(0,1fr) minmax(92px,130px);gap:9px;align-items:center}
 .team-summary-name{font-size:11px;font-weight:760;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .team-summary-bar{height:9px;background:#eeeef2;border-radius:999px;overflow:hidden}
 .team-summary-bar>div{height:100%;background:linear-gradient(90deg,var(--blue2),var(--blue));border-radius:999px}
-.team-summary-value{text-align:right;font-size:10px;color:var(--muted);font-weight:750}
+.team-summary-value{text-align:right;font-size:10px;color:var(--muted);font-weight:750;line-height:1.25}
 .attention-list{display:grid;gap:8px}
 .attention-item{border:1px solid var(--line);border-radius:14px;padding:11px;background:#fafafa;display:grid;grid-template-columns:10px minmax(0,1fr);gap:9px;align-items:start}
 .attention-dot{width:9px;height:9px;border-radius:50%;margin-top:4px;background:var(--yellow)}
@@ -723,6 +723,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   let currentRevision = 0;
   let supabaseInitialized = false;
   let workflowBackendReady = false;
+  let teamMetricsBackendReady = false;
+  let teamPerformance = {available:false,window_days:14,metrics:[],recommended_order:[]};
   const initialDeadline = parseDate(state.physicalDeadline) || new Date();
   let calendarYear = initialDeadline.getFullYear();
   let calendarMonth = initialDeadline.getMonth();
@@ -829,6 +831,49 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       throw err;
     }
     return payload;
+  }
+
+  function teamMetric(name){
+    return teamPerformance.metrics.find(metric=>metric.name===name)||null;
+  }
+
+  function bestAllocationCandidate(projections=projectionMap()){
+    const recommended=(teamPerformance.recommended_order||[]).find(name=>state.team.includes(name));
+    if(recommended)return recommended;
+
+    const {result}=workloadData(projections);
+    return [...state.team].sort((a,b)=>(result[a]?.days||0)-(result[b]?.days||0))[0]||null;
+  }
+
+  function teamActivityLabel(metric){
+    if(!metric)return "sem histórico";
+    if(metric.status==="stalled")return "sem avanço recente";
+    if(metric.completed_recent>0&&metric.pages_recent>0)return metric.completed_recent+" concluído(s) · +"+metric.pages_recent+" pág.";
+    if(metric.completed_recent>0)return metric.completed_recent+" concluído(s)";
+    if(metric.pages_recent>0)return "+"+metric.pages_recent+" pág. recentes";
+    if(metric.status==="available")return "disponível";
+    return "sem avanço recente";
+  }
+
+  async function loadTeamPerformance({refreshSummary=true}={}){
+    if(!teamMetricsBackendReady||!currentUser)return teamPerformance;
+
+    try{
+      const result=await callMaterialApi({action:"team_metrics"});
+      teamPerformance={
+        available:true,
+        window_days:Number(result.window_days||14),
+        metrics:Array.isArray(result.metrics)?result.metrics:[],
+        recommended_order:Array.isArray(result.recommended_order)?result.recommended_order:[]
+      };
+
+      if(refreshSummary&&document.querySelector("#summaryOverlay")?.classList.contains("show")){
+        renderExecutiveSummary(projectionMap());
+      }
+    }catch(error){
+      console.warn("Métricas da equipe indisponíveis:",error);
+    }
+    return teamPerformance;
   }
 
   function mergePendingChanges(baseStateSnapshot,localState,incomingState){
@@ -939,6 +984,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
       currentRevision=Number(result.revision??currentRevision);
       lastSyncedState=clone(snapshot);
+      loadTeamPerformance({refreshSummary:true});
 
       if(remoteDirty){
         setSyncStatus("Alterações pendentes · até 15s","syncing");
@@ -970,6 +1016,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         localStorage.removeItem(USER_KEY);
         currentUser=null;
         workflowBackendReady=false;
+        teamMetricsBackendReady=false;
+        teamPerformance={available:false,window_days:14,metrics:[],recommended_order:[]};
         remoteReady=false;
         remoteDirty=false;
         setSyncStatus("Identificação necessária","warn");
@@ -1101,10 +1149,12 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const result=await callMaterialApi({action:"check_session"});
       currentUser=result.user;
       workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
+      teamMetricsBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("team_metrics_v1");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
       render();
       await initSupabase();
+      await loadTeamPerformance({refreshSummary:false});
     }catch(error){
       localStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(USER_KEY);
@@ -1128,11 +1178,13 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       localStorage.setItem(SESSION_KEY,result.session_token);
       currentUser=result.user;
       workflowBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("workflow_v2");
+      teamMetricsBackendReady=Array.isArray(result.capabilities)&&result.capabilities.includes("team_metrics_v1");
       localStorage.setItem(USER_KEY,JSON.stringify(currentUser));
       applyIdentityUi();
       setSyncStatus(result.created?"Perfil criado":"Identificado","online");
       render();
       await initSupabase();
+      await loadTeamPerformance({refreshSummary:false});
       if(result.created)toast("Perfil criado. Nas próximas vezes, use o mesmo nome e PIN.");
     }catch(error){
       if(error.status===423){
@@ -1396,40 +1448,43 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   }
 
   function projectStatusSuggestion(c=projectCapacitySummary(),projections=projectionMap()){
-    const {result:teamData,unassigned}=workloadData(projections);
-    const teamRows=state.team
-      .map(name=>({name,days:teamData[name]?.days||0}))
-      .sort((a,b)=>a.days-b.days);
-    const leastLoaded=teamRows[0]||null;
-    const mostLoaded=teamRows[teamRows.length-1]||null;
+    const {unassigned}=workloadData(projections);
+    const candidate=bestAllocationCandidate(projections);
+    const stalled=teamPerformance.available
+      ? teamPerformance.metrics.filter(metric=>metric.status==="stalled")
+      : [];
 
     if(c.afterDeadlineStarts){
-      return `Antecipe os materiais que começam depois do limite da gráfica.`;
+      return "Antecipe os materiais que começam depois do limite da gráfica.";
     }
 
     if(c.balance<0){
-      if(unassigned>0&&leastLoaded){
-        return `${leastLoaded.name} está com a menor carga; priorize a próxima pendência nessa pessoa e recupere o restante com redistribuição ou trabalho extra.`;
+      if(candidate&&unassigned>0){
+        const stalledOther=stalled.find(metric=>metric.name!==candidate);
+        if(stalledOther){
+          return `Direcione a próxima pendência para ${candidate}. ${stalledOther.name} está sem avanço recente e precisa destravar o material atual.`;
+        }
+        return `Direcione a próxima pendência para ${candidate} e recupere o restante com redistribuição ou trabalho extra.`;
       }
-      if(leastLoaded&&mostLoaded&&mostLoaded.days-leastLoaded.days>=1){
-        return `Redistribua a próxima carga para ${leastLoaded.name}, que está mais leve, e use trabalho extra só para cobrir o déficit restante.`;
+      if(candidate){
+        return `Use ${candidate} na próxima alocação e recupere o déficit restante com redistribuição ou trabalho extra.`;
       }
-      return `Ganhe capacidade com redistribuição, produtividade extra ou trabalho adicional.`;
+      return "Ganhe capacidade com redistribuição, produtividade extra ou trabalho adicional.";
     }
 
-    if(c.missingOwners&&leastLoaded){
-      return `Defina os responsáveis pendentes; ${leastLoaded.name} está com a menor carga agora.`;
+    if(c.missingOwners&&candidate){
+      return `Defina os responsáveis pendentes; ${candidate} aparece como a melhor disponibilidade para a próxima alocação.`;
     }
 
     if(c.missingStarts){
-      return `Defina os inícios pendentes para a projeção ficar confiável.`;
+      return "Defina os inícios pendentes para a projeção ficar confiável.";
     }
 
-    if(c.balance<=c.teamSize){
-      return `Evite novas pendências e mande a próxima carga para quem estiver mais leve.`;
+    if(c.balance<=c.teamSize&&candidate){
+      return `Preserve a pouca folga: use ${candidate} na próxima alocação e evite novas pendências.`;
     }
 
-    return `Mantenha a carga equilibrada; não há ação urgente agora.`;
+    return "Mantenha a carga equilibrada; não há ação urgente agora.";
   }
 
   function scheduleStatus(){
@@ -1543,16 +1598,43 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     ).join("");
 
     const {result:teamData,unassigned}=workloadData(projections);
-    const teamRows=state.team.map(name=>({name,days:teamData[name]?.days||0,count:teamData[name]?.count||0}));
-    const maxLoad=Math.max(1,...teamRows.map(x=>x.days));
-    const mostLoaded=[...teamRows].sort((a,b)=>b.days-a.days)[0];
-    const nextFree=[...teamRows].sort((a,b)=>a.days-b.days)[0];
+    const candidate=bestAllocationCandidate(projections);
 
-    document.querySelector("#summaryTeamHeadline").innerHTML="Mais carregado: <strong>"+escapeHtml(mostLoaded?.name||"—")+"</strong> · libera primeiro: <strong>"+escapeHtml(nextFree?.name||"—")+"</strong>";
-    document.querySelector("#summaryTeam").innerHTML=teamRows.map(d=>{
-      const width=Math.max(d.days>0?6:0,Math.min(100,(d.days/maxLoad)*100));
-      return '<div class="team-summary-row"><div class="team-summary-name">'+escapeHtml(d.name)+'</div><div class="team-summary-bar"><div style="width:'+width+'%"></div></div><div class="team-summary-value">'+fmtWorkDays(d.days)+'</div></div>';
-    }).join("")+(unassigned>0?'<div class="team-overview" style="margin:3px 0 0;color:#8b6200"><strong>'+fmtWorkDays(unassigned)+'</strong> ainda sem responsável</div>':"");
+    if(teamPerformance.available&&teamPerformance.metrics.length){
+      const activityValues=teamPerformance.metrics.map(metric=>metric.pages_recent+metric.completed_recent*50);
+      const maxActivity=Math.max(1,...activityValues);
+
+      document.querySelector("#summaryTeamHeadline").innerHTML=
+        candidate
+          ? "Melhor disponibilidade para próxima alocação: <strong>"+escapeHtml(candidate)+"</strong>"
+          : "Histórico da equipe carregado.";
+
+      document.querySelector("#summaryTeam").innerHTML=state.team.map(name=>{
+        const metric=teamMetric(name);
+        const activity=metric?metric.pages_recent+metric.completed_recent*50:0;
+        const width=Math.max(activity>0?6:0,Math.min(100,(activity/maxActivity)*100));
+        const label=teamActivityLabel(metric);
+        const title=metric?.days_since_update===null||metric?.days_since_update===undefined
+          ? label
+          : label+" · última atualização há "+metric.days_since_update+" dia(s)";
+        return '<div class="team-summary-row" title="'+escapeHtml(title)+'"><div class="team-summary-name">'+escapeHtml(name)+'</div><div class="team-summary-bar"><div style="width:'+width+'%"></div></div><div class="team-summary-value">'+escapeHtml(label)+'</div></div>';
+      }).join("")+
+      (unassigned>0?'<div class="team-overview" style="margin:3px 0 0;color:#8b6200"><strong>'+fmtWorkDays(unassigned)+'</strong> ainda sem responsável</div>':"");
+    }else{
+      const teamRows=state.team.map(name=>({name,days:teamData[name]?.days||0}));
+      const maxLoad=Math.max(1,...teamRows.map(x=>x.days));
+      const fallbackCandidate=bestAllocationCandidate(projections);
+
+      document.querySelector("#summaryTeamHeadline").innerHTML=
+        fallbackCandidate
+          ? "Melhor disponibilidade estimada: <strong>"+escapeHtml(fallbackCandidate)+"</strong>"
+          : "Sem dados suficientes.";
+
+      document.querySelector("#summaryTeam").innerHTML=teamRows.map(d=>{
+        const width=Math.max(d.days>0?6:0,Math.min(100,(d.days/maxLoad)*100));
+        return '<div class="team-summary-row"><div class="team-summary-name">'+escapeHtml(d.name)+'</div><div class="team-summary-bar"><div style="width:'+width+'%"></div></div><div class="team-summary-value">'+fmtWorkDays(d.days)+'</div></div>';
+      }).join("");
+    }
 
     const attention=state.materials.map(m=>{
       const risk=materialSpecificRisk(m)||riskFor(m,projections[m.id]);
@@ -1875,8 +1957,9 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
   let summaryScrollY=0;
 
-  function openExecutiveSummary(){
+  async function openExecutiveSummary(){
     summaryScrollY=window.scrollY;
+    await loadTeamPerformance({refreshSummary:false});
     renderExecutiveSummary(projectionMap());
     const overlay=document.querySelector("#summaryOverlay");
     overlay.classList.add("show");
@@ -2041,14 +2124,28 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   document.querySelector("#daysPerBook").addEventListener("change",e=>{state.daysPerBook=Math.max(.5,Number(e.target.value||5));render()});
   document.querySelector("#readyOutside").addEventListener("change",e=>{state.readyOutside=Math.max(0,Number(e.target.value||0));render()});
 
-  document.querySelector("#autoAssignBtn").addEventListener("click",()=>{
+  document.querySelector("#autoAssignBtn").addEventListener("click",async()=>{
     if(!state.team.length){toast("Adicione pelo menos um designer.");return}
+    await loadTeamPerformance({refreshSummary:false});
+
     const loads=Object.fromEntries(state.team.map(n=>[n,0]));
     state.materials.forEach(m=>{if(m.owner&&loads.hasOwnProperty(m.owner))loads[m.owner]+=remainingDays(m)});
+
+    const order=(teamPerformance.recommended_order||[]).filter(name=>state.team.includes(name));
+    const rank=Object.fromEntries(state.team.map(name=>[name,order.includes(name)?order.indexOf(name):state.team.length]));
+
     state.materials.filter(m=>!m.owner&&remainingDays(m)>.001).forEach(m=>{
-      const target=[...state.team].sort((a,b)=>loads[a]-loads[b])[0];m.owner=target;loads[target]+=remainingDays(m);
+      const target=[...state.team].sort((a,b)=>{
+        const scoreA=(rank[a]||0)*1.5+loads[a];
+        const scoreB=(rank[b]||0)*1.5+loads[b];
+        return scoreA-scoreB;
+      })[0];
+      m.owner=target;
+      loads[target]+=remainingDays(m);
     });
-    render();toast("Pendentes distribuídos pela menor carga.");
+
+    render();
+    toast("Pendentes distribuídos pelo ritmo recente e disponibilidade.");
   });
 
   document.querySelector("#addMaterialBtn").addEventListener("click",()=>{
