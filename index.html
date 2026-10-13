@@ -838,8 +838,10 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return [...group].sort((a,b)=>score(b)-score(a))[0];
   }
 
-  function mergeDuplicateGroup(group,keepId){
-    const chosen=group.find(m=>String(m.id)===String(keepId))||defaultDuplicateKeeper(group);
+  function mergeDuplicateGroup(group,keepIndex){
+    // Registros duplicados pelo bug podem ter até o MESMO id. A escolha é por posição.
+    const chosen=Number.isInteger(keepIndex)&&keepIndex>=0&&keepIndex<group.length
+      ?group[keepIndex]:defaultDuplicateKeeper(group);
     const result=clone(chosen);
     const total=Math.max(1,Number(result.totalPages||1));
     // Nunca soma páginas: mantém o maior progresso do mesmo material.
@@ -882,7 +884,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       if(byKey.has(key)){
         if(seen.has(key))continue;
         seen.add(key);
-        out.push(mergeDuplicateGroup(byKey.get(key),defaultDuplicateKeeper(byKey.get(key)).id));
+        out.push(mergeDuplicateGroup(byKey.get(key),byKey.get(key).indexOf(defaultDuplicateKeeper(byKey.get(key)))));
       }else out.push(material);
     }
     return out;
@@ -2124,16 +2126,16 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const list=document.querySelector("#duplicateGroupList");
 
     list.innerHTML=groups.map((group,i)=>{
-      const defaultId=String(defaultDuplicateKeeper(group).id);
+      const defaultIndex=group.indexOf(defaultDuplicateKeeper(group));
       const owners=[...new Set(group.map(m=>m.owner).filter(Boolean))];
       const totals=[...new Set(group.map(m=>Number(m.totalPages||0)))];
 
-      const choices=group.map(m=>{
-        const checked=String(m.id)===defaultId?"checked":"";
+      const choices=group.map((m,j)=>{
+        const checked=j===defaultIndex?"checked":"";
         const pct=Math.round(100*Number(m.currentPage||0)/Math.max(1,Number(m.totalPages||1)));
         const done=m.flow?.completed&&flowStageDate(m.flow.completed)?" · concluído registrado":"";
         return '<label class="dup-choice">'+
-          '<input type="radio" name="duplicate-keep-'+i+'" value="'+escapeHtml(m.id)+'" '+checked+'>'+
+          '<input type="radio" name="duplicate-keep-'+i+'" value="'+j+'" '+checked+'>'+
           '<span><span class="dup-title">'+escapeHtml(m.owner||"Sem responsável")+
           ' · '+Number(m.currentPage||0)+'/'+Number(m.totalPages||0)+' páginas'+done+'</span>'+
           '<span class="dup-meta">'+pct+'% diagramado · '+escapeHtml(m.plannedStart||"sem início")+
@@ -2185,7 +2187,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const keepIds=new Map();
     for(let i=0;i<groups.length;i++){
       const selected=document.querySelector('input[name="duplicate-keep-'+i+'"]:checked');
-      keepIds.set(materialTitleKey(groups[i][0]),selected?.value||defaultDuplicateKeeper(groups[i]).id);
+      keepIds.set(materialTitleKey(groups[i][0]),selected?Number(selected.value):groups[i].indexOf(defaultDuplicateKeeper(groups[i])));
     }
 
     const seen=new Set(),fixed=[];
