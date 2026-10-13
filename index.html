@@ -548,7 +548,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
         </div>
         <div class="logic-box">
           <strong>5 dias úteis / livro</strong> representam esforço de produção, não uma janela isolada para cada material.<br><br>
-          O prazo geral compara a <strong>carga restante em designer-dias</strong> com a capacidade dos designers trabalhando em paralelo até o limite da gráfica. Quando alguém termina sua carga atual, essa capacidade pode ser usada no próximo material.<br><br>
+          O prazo geral compara a <strong>carga de trabalho restante</strong> com a capacidade das pessoas trabalhando em paralelo até o limite da gráfica. Quando alguém termina sua carga atual, essa capacidade pode ser usada no próximo material.<br><br>
           Nos cards, a cor representa <strong>somente a situação daquele material</strong>: pendências como sem responsável, sem início, etapa sem data ou início após o limite. A <strong>situação global do projeto</strong> aparece separadamente no topo e no Resumo Executivo.
         </div>
       </div>
@@ -594,7 +594,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
                 <div class="summary-tooltip-label solution">O que fazer agora?</div>
                 <div class="summary-tooltip-text" id="summaryDeadlineSolution"></div>
               </div>
-              <div class="summary-tooltip-hint">A sugestão usa a carga e as pendências atuais do painel.</div>
+              <div class="summary-tooltip-hint">Baseado na carga atual do painel.</div>
             </div>
           </div>
           <div class="summary-mini-card">
@@ -1221,6 +1221,12 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     if(!(d instanceof Date)||isNaN(d))return "—";
     return d.toLocaleDateString("pt-BR",short?{day:"2-digit",month:"2-digit"}:{day:"2-digit",month:"2-digit",year:"numeric"});
   }
+  function fmtWorkDays(value,long=false){
+    const n=Number(value||0);
+    const text=n.toLocaleString("pt-BR",{minimumFractionDigits:Number.isInteger(n)?0:1,maximumFractionDigits:1});
+    return long?`${text} dias de trabalho`:`${text} dias`;
+  }
+
   function physicalDeadline(){return parseDate(state.physicalDeadline)}
   function graphicsDeadline(){return subtractBusinessDays(physicalDeadline(),Number(state.printDays||0))}
   function progressPct(m){
@@ -1374,71 +1380,56 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
   function projectStatusReason(c=projectCapacitySummary()){
     if(c.afterDeadlineStarts){
-      return `${c.afterDeadlineStarts} material(is) têm início previsto depois do limite para a gráfica.`;
+      return `${c.afterDeadlineStarts} material(is) começam depois do limite da gráfica.`;
     }
     if(c.balance<0){
-      return `A carga restante é de ${c.load.toFixed(1)} designer-dias, mas o time tem ${c.capacity.toFixed(1)} designer-dias disponíveis até a gráfica. Faltam ${Math.abs(c.balance).toFixed(1)} designer-dias de capacidade.`;
+      return `Faltam ${fmtWorkDays(Math.abs(c.balance),true)} somados do time para fechar no prazo.`;
     }
     if(c.balance<=c.teamSize){
-      return `O projeto ainda fecha, mas com só ${c.balance.toFixed(1)} designer-dia(s) de folga de capacidade.`;
+      return `O projeto fecha, mas sobra só ${fmtWorkDays(c.balance,true)} de folga.`;
     }
     if(c.missingStarts||c.missingOwners){
-      const parts=[];
-      if(c.missingStarts)parts.push(`${c.missingStarts} sem início definido`);
-      if(c.missingOwners)parts.push(`${c.missingOwners} sem responsável`);
-      return `Há capacidade, mas ainda existem pendências: ${parts.join(" e ")}.`;
+      const total=Number(c.missingStarts||0)+Number(c.missingOwners||0);
+      return `Ainda há ${total} pendência(s) de início ou responsável.`;
     }
-    return `A carga restante cabe na capacidade disponível, com ${c.balance.toFixed(1)} designer-dia(s) de folga.`;
+    return `O time tem ${fmtWorkDays(c.balance,true)} de folga até a gráfica.`;
   }
 
   function projectStatusSuggestion(c=projectCapacitySummary(),projections=projectionMap()){
     const {result:teamData,unassigned}=workloadData(projections);
     const teamRows=state.team
-      .map(name=>({name,days:teamData[name]?.days||0,count:teamData[name]?.count||0}))
+      .map(name=>({name,days:teamData[name]?.days||0}))
       .sort((a,b)=>a.days-b.days);
     const leastLoaded=teamRows[0]||null;
     const mostLoaded=teamRows[teamRows.length-1]||null;
 
     if(c.afterDeadlineStarts){
-      const lateStarts=state.materials.filter(m=>{
-        const d=parseDate(m.plannedStart);
-        return d&&d>graphicsDeadline()&&remainingDays(m)>.001;
-      }).slice(0,2).map(m=>m.name);
-      const names=lateStarts.length?" Priorize antecipar "+lateStarts.join(" e ")+".":"";
-      return "Antecipe os inícios que ficaram depois do limite da gráfica."+names;
+      return `Antecipe os materiais que começam depois do limite da gráfica.`;
     }
 
     if(c.balance<0){
-      const deficit=Math.abs(c.balance).toFixed(1);
-      const pieces=["É preciso ganhar cerca de "+deficit+" designer-dia(s) de capacidade — com produtividade extra, trabalho adicional ou apoio temporário."];
       if(unassigned>0&&leastLoaded){
-        pieces.push("Há "+unassigned.toFixed(1)+" d.u. sem responsável; "+leastLoaded.name+" tem hoje a menor carga atribuída ("+leastLoaded.days.toFixed(1)+" d.u.) e é o primeiro candidato para absorver parte dela.");
-      }else if(leastLoaded){
-        if(leastLoaded.days<.1){
-          pieces.push(leastLoaded.name+" está sem carga atribuída no momento; vale direcionar a próxima pendência para essa pessoa.");
-        }else if(mostLoaded&&mostLoaded.days-leastLoaded.days>=1){
-          pieces.push(leastLoaded.name+" tem a menor carga atribuída ("+leastLoaded.days.toFixed(1)+" d.u.), enquanto "+mostLoaded.name+" está com "+mostLoaded.days.toFixed(1)+" d.u.; redistribuir a próxima carga ajuda a evitar gargalo.");
-        }
+        return `${leastLoaded.name} está com a menor carga; priorize a próxima pendência nessa pessoa e recupere o restante com redistribuição ou trabalho extra.`;
       }
-      return pieces.join(" ");
+      if(leastLoaded&&mostLoaded&&mostLoaded.days-leastLoaded.days>=1){
+        return `Redistribua a próxima carga para ${leastLoaded.name}, que está mais leve, e use trabalho extra só para cobrir o déficit restante.`;
+      }
+      return `Ganhe capacidade com redistribuição, produtividade extra ou trabalho adicional.`;
     }
 
     if(c.missingOwners&&leastLoaded){
-      return "Defina os "+c.missingOwners+" material(is) sem responsável. "+leastLoaded.name+" tem a menor carga atribuída agora ("+leastLoaded.days.toFixed(1)+" d.u.) e pode ser a primeira opção para receber nova carga.";
+      return `Defina os responsáveis pendentes; ${leastLoaded.name} está com a menor carga agora.`;
     }
 
     if(c.missingStarts){
-      return "Defina o início dos "+c.missingStarts+" material(is) pendentes. Sem essas datas, a capacidade projetada pode parecer melhor do que realmente é.";
+      return `Defina os inícios pendentes para a projeção ficar confiável.`;
     }
 
     if(c.balance<=c.teamSize){
-      if(leastLoaded&&mostLoaded&&mostLoaded.days-leastLoaded.days>=1){
-        return "Preserve a pouca folga disponível: direcione a próxima carga para "+leastLoaded.name+", que está mais leve que "+mostLoaded.name+".";
-      }
-      return "O projeto fecha, mas sem muita gordura. Evite novas pendências e preserve a distribuição equilibrada da carga.";
+      return `Evite novas pendências e mande a próxima carga para quem estiver mais leve.`;
     }
 
-    return "Não há ação corretiva urgente. Mantenha a distribuição equilibrada e use quem estiver com menor carga para os próximos materiais.";
+    return `Mantenha a carga equilibrada; não há ação urgente agora.`;
   }
 
   function scheduleStatus(){
@@ -1560,8 +1551,8 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     document.querySelector("#summaryTeamHeadline").innerHTML="Mais carregado: <strong>"+escapeHtml(mostLoaded?.name||"—")+"</strong> · libera primeiro: <strong>"+escapeHtml(nextFree?.name||"—")+"</strong>";
     document.querySelector("#summaryTeam").innerHTML=teamRows.map(d=>{
       const width=Math.max(d.days>0?6:0,Math.min(100,(d.days/maxLoad)*100));
-      return '<div class="team-summary-row"><div class="team-summary-name">'+escapeHtml(d.name)+'</div><div class="team-summary-bar"><div style="width:'+width+'%"></div></div><div class="team-summary-value">'+d.days.toFixed(1)+' d.u.</div></div>';
-    }).join("")+(unassigned>0?'<div class="team-overview" style="margin:3px 0 0;color:#8b6200"><strong>'+unassigned.toFixed(1)+' d.u.</strong> ainda sem responsável</div>':"");
+      return '<div class="team-summary-row"><div class="team-summary-name">'+escapeHtml(d.name)+'</div><div class="team-summary-bar"><div style="width:'+width+'%"></div></div><div class="team-summary-value">'+fmtWorkDays(d.days)+'</div></div>';
+    }).join("")+(unassigned>0?'<div class="team-overview" style="margin:3px 0 0;color:#8b6200"><strong>'+fmtWorkDays(unassigned)+'</strong> ainda sem responsável</div>':"");
 
     const attention=state.materials.map(m=>{
       const risk=materialSpecificRisk(m)||riskFor(m,projections[m.id]);
@@ -1644,7 +1635,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
           </div>
           <div>
             <label style="display:block;font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.045em;margin:0 0 5px 2px">Carga restante</label>
-            <div class="remaining-value" data-role="remaining">${rem.toFixed(rem%1?1:0)} d.u.</div>
+            <div class="remaining-value" data-role="remaining">${fmtWorkDays(rem)}</div>
           </div>
         </div>
         <div data-role="timeline">${timelineMarkup(m)}</div>`;
@@ -1671,14 +1662,14 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const el=document.createElement("div");el.className="workload-item";
       el.innerHTML=`<div class="workload-head"><strong>${escapeHtml(n)}</strong><span>${d.count} material(is)</span></div>
       <div class="bar"><div style="width:${pct}%;${late?"background:linear-gradient(90deg,#ff9f0a,#d70015)":""}"></div></div>
-      <div class="workload-meta"><span>${d.days.toFixed(1)} d.u. restantes</span><span>${d.last?`último impresso ${fmtDate(d.last,true)}`:"sem projeção"}</span></div>`;
+      <div class="workload-meta"><span>${fmtWorkDays(d.days)} restantes</span><span>${d.last?`último impresso ${fmtDate(d.last,true)}`:"sem projeção"}</span></div>`;
       box.appendChild(el);
     });
     if(unassigned>0){
       const el=document.createElement("div");el.className="workload-item";el.style.background="var(--yellow-soft)";
       el.innerHTML=`<div class="workload-head"><strong>Sem responsável</strong><span>precisa distribuir</span></div>
       <div class="bar"><div style="width:100%;background:linear-gradient(90deg,#ffd45a,#d79b00)"></div></div>
-      <div class="workload-meta"><span>${unassigned.toFixed(1)} d.u. pendentes</span><span>sem projeção completa</span></div>`;
+      <div class="workload-meta"><span>${fmtWorkDays(unassigned)} pendentes</span><span>sem projeção completa</span></div>`;
       box.appendChild(el);
     }
   }
@@ -1876,7 +1867,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const fill=card.querySelector('[data-role="fill"]');if(fill){fill.className=`progress-fill ${pc}`;fill.style.width=`${pct}%`}
       const pctEl=card.querySelector('[data-role="pct"]');if(pctEl)pctEl.textContent=`${pct.toFixed(0)}%`;
       const urg=card.querySelector('[data-role="urgency"]');if(urg){urg.className=`urgency ${pc}`;urg.textContent=risk.label}
-      const remEl=card.querySelector('[data-role="remaining"]');if(remEl)remEl.textContent=`${rem.toFixed(rem%1?1:0)} d.u.`;
+      const remEl=card.querySelector('[data-role="remaining"]');if(remEl)remEl.textContent=fmtWorkDays(rem);
       const riskEl=card.querySelector('[data-role="risk"]');if(riskEl){riskEl.className=`risk ${risk.cls}`;riskEl.textContent=risk.label}
       card.classList.toggle("behind",risk.cls==="bad");
     });
