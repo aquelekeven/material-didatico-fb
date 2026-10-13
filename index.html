@@ -1374,7 +1374,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
   function projectionMap(){
     const out={},cursor={}; state.team.forEach(n=>cursor[n]=null);
-    state.materials.forEach(m=>{
+    uniqueMaterialView().forEach(m=>{
       const pct=progressPct(m),planned=parseDate(m.plannedStart),rem=remainingDays(m);
       if(pct>=99.999){
         const graphics=planned?normalizeBusinessDay(maxDate(planned,today())):today();
@@ -1485,7 +1485,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const teamSize=state.team.length;
     const deadline=graphicsDeadline();
     const availableDays=businessDaysInclusive(today(),deadline);
-    const active=state.materials.filter(m=>!flowStageDate(m.flow?.completed));
+    const active=uniqueMaterialView().filter(m=>!flowStageDate(m.flow?.completed));
     const load=active.reduce((sum,m)=>sum+remainingDays(m),0);
     const capacity=availableDays*teamSize;
     const balance=capacity-load;
@@ -1500,8 +1500,11 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       return d&&deadline&&d>deadline&&remainingDays(m)>.001;
     }).length;
 
+    const duplicateGroups=duplicateMaterialGroups().length;
     let cls="good",label="Saudável";
-    if(!teamSize||balance<0||afterDeadlineStarts) {
+    if(duplicateGroups){
+      cls="warn";label="Revisar dados";
+    }else if(!teamSize||balance<0||afterDeadlineStarts) {
       cls="bad";label="Crítico";
     }else if(balance<=teamSize||missingStarts||missingOwners){
       cls="warn";label="Apertado";
@@ -1509,11 +1512,12 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
     return {
       teamSize,availableDays,load,capacity,balance,equivalentDays,projectedFinish,
-      missingStarts,missingOwners,afterDeadlineStarts,cls,label
+      missingStarts,missingOwners,afterDeadlineStarts,duplicateGroups,cls,label
     };
   }
 
   function projectStatusReason(c=projectCapacitySummary()){
+    if(c.duplicateGroups)return "Existem materiais repetidos. Corrija o cadastro antes de validar o prazo.";
     if(c.afterDeadlineStarts){
       return `${c.afterDeadlineStarts} material(is) começam depois do limite da gráfica.`;
     }
@@ -1531,6 +1535,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   }
 
   function projectStatusSuggestion(c=projectCapacitySummary(),projections=projectionMap()){
+    if(c.duplicateGroups)return "Abra Revisar duplicados para conferir e corrigir os registros repetidos.";
     const {unassigned}=workloadData(projections);
     const candidate=bestAllocationCandidate(projections);
     const stalled=teamPerformance.available
@@ -1613,24 +1618,25 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const fab=document.querySelector("#summaryFab");
     if(fab)fab.className="summary-fab "+capacity.cls;
 
-    const completedTracked=state.materials.filter(m=>flowStageDate(m.flow?.completed)).length;
+    const uniqueMaterials=uniqueMaterialView();
+    const completedTracked=uniqueMaterials.filter(m=>flowStageDate(m.flow?.completed)).length;
     const completedTotal=Number(state.readyOutside||0)+completedTracked;
-    const total=state.materials.length+Number(state.readyOutside||0);
+    const total=uniqueMaterials.length+Number(state.readyOutside||0);
     const projectPct=total?Math.round((completedTotal/total)*100):0;
 
-    const activeMaterials=state.materials.filter(m=>!flowStageDate(m.flow?.completed));
+    const activeMaterials=uniqueMaterials.filter(m=>!flowStageDate(m.flow?.completed));
     const criticalCount=activeMaterials.filter(m=>{
       const risk=materialSpecificRisk(m);
       return risk?.cls==="bad";
     }).length;
     const criticalPct=activeMaterials.length?Math.round((criticalCount/activeMaterials.length)*100):0;
 
-    const pendingMaterials=state.materials.filter(m=>{
+    const pendingMaterials=uniqueMaterials.filter(m=>{
       const hasPendingDate=Object.values(m.flow||{}).some(v=>v===FLOW_PENDING);
       return hasPendingDate||(!m.owner&&remainingDays(m)>.001)||(!m.plannedStart&&remainingDays(m)>.001);
     });
     const pendingCount=pendingMaterials.length;
-    const pendingPct=state.materials.length?Math.round((pendingCount/state.materials.length)*100):0;
+    const pendingPct=uniqueMaterials.length?Math.round((pendingCount/uniqueMaterials.length)*100):0;
 
     const capacityUsage=capacity.capacity>0?(capacity.load/capacity.capacity)*100:100;
     const capacityVisual=Math.max(0,Math.min(100,capacityUsage));
@@ -1665,7 +1671,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       ["completed","Concluído","#46c26f"]
     ];
     const stageCounts=Object.fromEntries(stageDefs.map(([key])=>[key,0]));
-    state.materials.forEach(m=>{
+    uniqueMaterials.forEach(m=>{
       const key=summaryStageFor(m).key;
       stageCounts[key]=(stageCounts[key]||0)+1;
     });
@@ -1683,7 +1689,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     const {result:teamData,unassigned}=workloadData(projections);
     const candidate=bestAllocationCandidate(projections);
 
-    if(teamPerformance.available&&teamPerformance.metrics.length){
+    if(!duplicateMaterialGroups().length&&teamPerformance.available&&teamPerformance.metrics.length){
       const activityValues=teamPerformance.metrics.map(metric=>metric.pages_recent+metric.completed_recent*50);
       const maxActivity=Math.max(1,...activityValues);
 
@@ -1709,17 +1715,17 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const fallbackCandidate=bestAllocationCandidate(projections);
 
       document.querySelector("#summaryTeamHeadline").innerHTML=
-        fallbackCandidate
-          ? "Melhor disponibilidade estimada: <strong>"+escapeHtml(fallbackCandidate)+"</strong>"
-          : "Sem dados suficientes.";
+        duplicateMaterialGroups().length
+          ? "Cadastro repetido: <strong>corrija os materiais para liberar a análise.</strong>"
+          : "Histórico em revisão. Aguardando dados confiáveis.";
 
       document.querySelector("#summaryTeam").innerHTML=teamRows.map(d=>{
         const width=Math.max(d.days>0?6:0,Math.min(100,(d.days/maxLoad)*100));
-        return '<div class="team-summary-row"><div class="team-summary-name">'+escapeHtml(d.name)+'</div><div class="team-summary-bar"><div style="width:'+width+'%"></div></div><div class="team-summary-value">'+fmtWorkDays(d.days)+'</div></div>';
+        return '<div class="team-summary-row"><div class="team-summary-name">'+escapeHtml(d.name)+'</div><div class="team-summary-bar"><div style="width:'+width+'%"></div></div><div class="team-summary-value">'+fmtWorkDays(d.days)+" de carga"+'</div></div>';
       }).join("");
     }
 
-    const attention=state.materials.map(m=>{
+    const attention=uniqueMaterials.map(m=>{
       const risk=materialSpecificRisk(m)||riskFor(m,projections[m.id]);
       const pendingDates=Object.values(m.flow||{}).filter(v=>v===FLOW_PENDING).length;
       const issues=[];
@@ -1738,11 +1744,12 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
   }
 
   function renderMetrics(projections){
-    const doneInside=state.materials.filter(m=>progressPct(m)>=99.999).length;
-    const total=state.materials.length+Number(state.readyOutside||0),doneTotal=Number(state.readyOutside||0)+doneInside;
-    const missingStarts=state.materials.filter(m=>progressPct(m)<99.999&&!m.plannedStart).length;
+    const uniqueMaterials=uniqueMaterialView();
+    const doneInside=uniqueMaterials.filter(m=>progressPct(m)>=99.999).length;
+    const total=uniqueMaterials.length+Number(state.readyOutside||0),doneTotal=Number(state.readyOutside||0)+doneInside;
+    const missingStarts=uniqueMaterials.filter(m=>progressPct(m)<99.999&&!m.plannedStart).length;
     document.querySelector("#metricTotal").textContent=total;
-    document.querySelector("#metricTotalHint").textContent=`${state.materials.length} acompanhados + ${state.readyOutside} já prontos`;
+    document.querySelector("#metricTotalHint").textContent=`${uniqueMaterials.length} acompanhados + ${state.readyOutside} já prontos`;
     document.querySelector("#metricDone").textContent=doneTotal;
     document.querySelector("#metricDoneHint").textContent=`${doneInside} com diagramação 100% + ${state.readyOutside} fora da fila`;
     document.querySelector("#metricProdDeadline").textContent=fmtDate(graphicsDeadline(),true);
@@ -1810,7 +1817,7 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
 
   function workloadData(projections){
     const result={};state.team.forEach(n=>result[n]={days:0,count:0,last:null});let unassigned=0;
-    state.materials.forEach(m=>{
+    uniqueMaterialView().forEach(m=>{
       const rem=remainingDays(m); if(rem<=.001)return;
       if(m.owner&&result[m.owner]){
         result[m.owner].days+=rem;result[m.owner].count++;
