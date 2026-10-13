@@ -751,6 +751,84 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
     return merged;
   }
 
+  // Detecta repetições reais de título sem tocar nos dados compartilhados.
+  function materialTitleKey(material){
+    const title=String(material?.name||"").trim().normalize("NFD")
+      .replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").toLowerCase();
+    return title==="novo material"?"":title;
+  }
+
+  function duplicateMaterialGroups(materials=state.materials){
+    const groups=new Map();
+    for(const material of materials){
+      const key=materialTitleKey(material);
+      if(!key)continue;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push(material);
+    }
+    return [...groups.values()].filter(group=>group.length>1);
+  }
+
+  function defaultDuplicateKeeper(group){
+    const score=m=>{
+      const stageDates=Object.values(m.flow||{}).filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v))).length;
+      const progress=Number(m.currentPage||0)/Math.max(1,Number(m.totalPages||1));
+      const canonical=/^m(?:[1-9]|10)$/.test(String(m.id))?3:0;
+      return stageDates*10+progress*10+(m.owner?2:0)+(m.plannedStart?1:0)+canonical;
+    };
+    return [...group].sort((a,b)=>score(b)-score(a))[0];
+  }
+
+  function mergeDuplicateGroup(group,keepId){
+    const chosen=group.find(m=>String(m.id)===String(keepId))||defaultDuplicateKeeper(group);
+    const result=clone(chosen);
+    const total=Math.max(1,Number(result.totalPages||1));
+    // Nunca soma páginas: mantém o maior progresso do mesmo material.
+    const maxProgress=Math.max(...group.map(m=>{
+      const sourceTotal=Math.max(1,Number(m.totalPages||1));
+      const current=Math.max(0,Math.min(sourceTotal,Number(m.currentPage||0)));
+      return Math.round((current/sourceTotal)*total);
+    }));
+    result.currentPage=Math.max(0,Math.min(total,maxProgress));
+
+    if(!result.owner){
+      const fallback=[...group].sort((a,b)=>Number(b.currentPage||0)-Number(a.currentPage||0))
+        .find(m=>Boolean(m.owner));
+      if(fallback)result.owner=fallback.owner;
+    }
+    if(!result.plannedStart){
+      const dates=group.map(m=>m.plannedStart).filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v))).sort();
+      result.plannedStart=dates[0]||"";
+    }
+
+    const flow={...emptyFlow(),...(result.flow||{})};
+    for(const [key] of FLOW_STAGES){
+      if(/^\d{4}-\d{2}-\d{2}$/.test(String(flow[key]||"")))continue;
+      const dates=group.map(m=>m.flow?.[key]).filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v))).sort();
+      if(dates.length)flow[key]=dates[0];
+      else if(group.some(m=>m.flow?.[key]===FLOW_PENDING))flow[key]=FLOW_PENDING;
+    }
+    result.flow=flow;
+    return result;
+  }
+
+  function uniqueMaterialView(){
+    const groups=duplicateMaterialGroups(state.materials);
+    if(!groups.length)return state.materials;
+    const byKey=new Map(groups.map(group=>[materialTitleKey(group[0]),group]));
+    const seen=new Set();
+    const out=[];
+    for(const material of state.materials){
+      const key=materialTitleKey(material);
+      if(byKey.has(key)){
+        if(seen.has(key))continue;
+        seen.add(key);
+        out.push(mergeDuplicateGroup(byKey.get(key),defaultDuplicateKeeper(byKey.get(key)).id));
+      }else out.push(material);
+    }
+    return out;
+  }
+
   function load(){
     try{
       const raw=localStorage.getItem(STORAGE_KEY);
@@ -911,11 +989,16 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       const baseMaterial=baseById.get(localMaterial.id);
 
       if(!baseMaterial){
-        mergedById.set(localMaterial.id,clone(localMaterial));
+        const key=materialTitleKey(localMaterial);
+        const duplicateExists=key&&[...mergedById.values()].some(m=>materialTitleKey(m)===key);
+        if(!duplicateExists)mergedById.set(localMaterial.id,clone(localMaterial));
         continue;
       }
 
-      const target=mergedById.get(localMaterial.id)||clone(incomingById.get(localMaterial.id)||localMaterial);
+      // Um material excluído por outra sessão não deve ressurgir no próximo merge.
+      if(!incomingById.has(localMaterial.id))continue;
+
+      const target=mergedById.get(localMaterial.id)||clone(incomingById.get(localMaterial.id));
       for(const field of materialFields){
         if(JSON.stringify(localMaterial[field])!==JSON.stringify(baseMaterial[field])){
           target[field]=clone(localMaterial[field]);
