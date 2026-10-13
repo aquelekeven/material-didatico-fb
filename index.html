@@ -1078,13 +1078,14 @@ span.flatpickr-weekday{font-size:11px;color:var(--muted);font-weight:700}
       }
       merged.materials=ordered;
     }else{
-      merged.materials=incoming.materials
-        .filter(m=>mergedById.has(m.id))
-        .map(m=>{
-          const item=mergedById.get(m.id);
-          mergedById.delete(m.id);
-          return item;
-        });
+      merged.materials=[];
+      for(const remoteMaterial of incoming.materials){
+        const item=mergedById.get(remoteMaterial.id);
+        // Mesmo ID pode estar duplicado no estado legado: insere somente uma vez.
+        if(!item)continue;
+        merged.materials.push(item);
+        mergedById.delete(remoteMaterial.id);
+      }
       // Só acrescenta os materiais realmente novos que não apareceram na ordem remota.
       for(const item of mergedById.values())merged.materials.push(item);
     }
